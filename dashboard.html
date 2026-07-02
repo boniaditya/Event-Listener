@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>EVENTLISTENER Dashboard</title>
+    <link rel="stylesheet" href="dashboard.css">
+  </head>
+  <body class="dashboard-page">
+    <main class="dashboard-shell">
+      <section class="panel dashboard-panel">
+        <header class="hero dashboard-hero">
+          <img class="app-icon" src="icons/icon-128.png" alt="EVENTLISTENER icon">
+          <div class="hero-copy">
+            <p class="eyebrow">Live Tab Monitoring</p>
+            <h1>EVENTLISTENER Dashboard</h1>
+            <p class="lede">
+              Edit the saved defaults that the popup uses when arming tabs, then review every tab
+              that is currently being monitored.
+            </p>
+          </div>
+          <div class="dashboard-utility">
+            <button id="refresh-button" class="mini-button" type="button">
+              <span class="mini-button-content">
+                <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <use href="icons/ui-sprite.svg#refresh"></use>
+                </svg>
+                <span>Refresh</span>
+              </span>
+            </button>
+            <button id="disarm-all-button" class="mini-button" type="button">
+              <span class="mini-button-content">
+                <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <use href="icons/ui-sprite.svg#stack-off"></use>
+                </svg>
+                <span>Disarm All Tabs</span>
+              </span>
+            </button>
+          </div>
+        </header>
+
+        <section class="summary-grid dashboard-summary-grid" aria-label="Dashboard summary">
+          <article class="summary-card summary-card--tabs">
+            <div class="summary-heading">
+              <span class="summary-icon-shell">
+                <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <use href="icons/ui-sprite.svg#tabs-cluster"></use>
+                </svg>
+              </span>
+              <span class="summary-label">Monitored Tabs</span>
+            </div>
+            <strong id="summary-armed-count" class="summary-value">Loading...</strong>
+            <span id="summary-armed-note" class="summary-note">Open the live coverage tab to review each armed tab.</span>
+          </article>
+          <article class="summary-card summary-card--rules">
+            <div class="summary-heading">
+              <span class="summary-icon-shell">
+                <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <use href="icons/ui-sprite.svg#rule-list"></use>
+                </svg>
+              </span>
+              <span class="summary-label">Default Rules</span>
+            </div>
+            <strong id="summary-rule-count" class="summary-value">Loading...</strong>
+            <span id="summary-rule-note" class="summary-note">These defaults are copied when a tab is armed from the popup.</span>
+          </article>
+          <article class="summary-card summary-card--actions">
+            <div class="summary-heading">
+              <span class="summary-icon-shell">
+                <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <use href="icons/ui-sprite.svg#workflow"></use>
+                </svg>
+              </span>
+              <span class="summary-label">Trigger Actions</span>
+            </div>
+            <strong id="summary-action-plan" class="summary-value">Loading...</strong>
+            <span class="summary-note">Multiple actions can run when the same rule fires.</span>
+          </article>
+          <article class="summary-card summary-card--cooldown">
+            <div class="summary-heading">
+              <span class="summary-icon-shell">
+                <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <use href="icons/ui-sprite.svg#hourglass"></use>
+                </svg>
+              </span>
+              <span class="summary-label">Cooldown</span>
+            </div>
+            <strong id="summary-cooldown" class="summary-value">Loading...</strong>
+            <span class="summary-note">Per category, per tab, between repeat alarms.</span>
+          </article>
+        </section>
+
+        <nav class="dashboard-tabs" aria-label="Dashboard views" role="tablist">
+          <button
+            id="dashboard-tab-rules"
+            class="dashboard-tab-button"
+            type="button"
+            role="tab"
+            aria-controls="dashboard-panel-rules"
+            aria-selected="true"
+            data-dashboard-tab="rules"
+          >
+            <span class="dashboard-tab-content">
+              <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <use href="icons/ui-sprite.svg#sliders"></use>
+              </svg>
+              <span>Saved Defaults</span>
+            </span>
+          </button>
+          <button
+            id="dashboard-tab-tabs"
+            class="dashboard-tab-button"
+            type="button"
+            role="tab"
+            aria-controls="dashboard-panel-tabs"
+            aria-selected="false"
+            data-dashboard-tab="tabs"
+          >
+            <span class="dashboard-tab-content">
+              <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <use href="icons/ui-sprite.svg#monitor"></use>
+              </svg>
+              <span>Live Coverage</span>
+            </span>
+          </button>
+        </nav>
+
+        <section class="dashboard-stack">
+          <section
+            id="dashboard-panel-rules"
+            class="settings-card dashboard-section dashboard-section-panel"
+            aria-label="Default rule editor"
+            role="tabpanel"
+            aria-labelledby="dashboard-tab-rules"
+            data-dashboard-panel="rules"
+          >
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Saved Defaults</p>
+                <h2 class="heading-with-icon">
+                  <svg class="ui-icon ui-icon--lg" viewBox="0 0 24 24" aria-hidden="true">
+                    <use href="icons/ui-sprite.svg#sliders"></use>
+                  </svg>
+                  <span>Rule editor</span>
+                </h2>
+              </div>
+            </div>
+            <p class="section-copy">
+              These settings are the template that EVENTLISTENER uses the next time you arm a tab
+              from the popup.
+            </p>
+            <section class="action-block" aria-label="Triggered actions">
+              <span class="action-title action-title-row">
+                <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <use href="icons/ui-sprite.svg#spark"></use>
+                </svg>
+                <span>When A Rule Fires</span>
+              </span>
+              <div id="action-choice" class="action-choice" role="group" aria-label="Triggered actions"></div>
+            </section>
+            <div id="event-list" class="event-list" role="group" aria-label="Event type selection"></div>
+          </section>
+
+          <section
+            id="dashboard-panel-tabs"
+            class="settings-card dashboard-section dashboard-section-panel"
+            aria-label="Monitored tabs"
+            role="tabpanel"
+            aria-labelledby="dashboard-tab-tabs"
+            data-dashboard-panel="tabs"
+            hidden
+          >
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Live Coverage</p>
+                <h2 class="heading-with-icon">
+                  <svg class="ui-icon ui-icon--lg" viewBox="0 0 24 24" aria-hidden="true">
+                    <use href="icons/ui-sprite.svg#stack"></use>
+                  </svg>
+                  <span>Monitored tabs</span>
+                </h2>
+              </div>
+            </div>
+            <p class="section-copy">
+              Every armed tab appears here with the actions it will run and the exact conditions
+              already applied to it.
+            </p>
+            <div id="monitored-tabs" class="monitored-list"></div>
+          </section>
+        </section>
+
+        <section class="status-card" aria-label="Recent alarm state">
+          <div class="summary-heading">
+            <span class="summary-icon-shell">
+              <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <use href="icons/ui-sprite.svg#bell"></use>
+              </svg>
+            </span>
+            <span class="summary-label">Latest Alarm</span>
+          </div>
+          <strong id="last-alarm" class="summary-value">No alarms have fired yet.</strong>
+          <span id="status-text" class="summary-note">Switch between saved defaults and live coverage here, then arm tabs from the popup as needed.</span>
+        </section>
+      </section>
+    </main>
+    <script type="module" src="src/dashboard.js"></script>
+  </body>
+</html>

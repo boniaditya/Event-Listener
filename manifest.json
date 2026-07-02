@@ -1,0 +1,60 @@
+{
+  "manifest_version": 3,
+  "name": "EVENTLISTENER",
+  "version": "0.4.0",
+  "minimum_chrome_version": "116",
+  "description": "Monitor tab and page conditions, then run one or more actions when your rules are met.",
+  "permissions": [
+    "alarms",
+    "notifications",
+    "offscreen",
+    "scripting",
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "src/page-bridge.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "src/content.js"
+      ],
+      "run_at": "document_start"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "action": {
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    },
+    "default_popup": "popup.html",
+    "default_title": "EVENTLISTENER"
+  },
+  "options_page": "dashboard.html"
+}

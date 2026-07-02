@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>EVENTLISTENER</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body class="popup-page">
+    <main class="panel">
+      <header class="hero">
+        <img class="app-icon" src="icons/icon-128.png" alt="EVENTLISTENER icon">
+        <div class="hero-copy">
+          <p class="eyebrow">Live Tab Monitoring</p>
+          <h1>EVENTLISTENER</h1>
+          <p class="lede">
+            Arm the current tab here, then open the full dashboard whenever you want to adjust
+            the saved conditions, actions, and monitored-tab coverage.
+          </p>
+        </div>
+      </header>
+
+      <section class="summary-grid" aria-label="Current tab status">
+        <article class="summary-card">
+          <div class="summary-heading">
+            <span class="summary-icon-shell">
+              <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <use href="icons/ui-sprite.svg#tab"></use>
+              </svg>
+            </span>
+            <span class="summary-label">Current Tab</span>
+          </div>
+          <strong id="tab-title" class="summary-value">Loading tab details...</strong>
+          <span id="tab-url" class="summary-note">Please wait.</span>
+        </article>
+        <article class="summary-card">
+          <div class="summary-heading">
+            <span class="summary-icon-shell">
+              <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <use href="icons/ui-sprite.svg#monitor"></use>
+              </svg>
+            </span>
+            <span class="summary-label">Monitoring</span>
+          </div>
+          <strong id="armed-status" class="summary-value">Checking state...</strong>
+          <span id="armed-note" class="summary-note">EVENTLISTENER is reading saved settings.</span>
+        </article>
+      </section>
+
+      <section class="control-strip" aria-label="Tab controls">
+        <button id="arm-button" class="button button-primary" type="button">
+          <span class="button-content">
+            <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <use href="icons/ui-sprite.svg#shield-on"></use>
+            </svg>
+            <span>Arm Current Tab</span>
+          </span>
+        </button>
+        <button id="disarm-button" class="button button-secondary" type="button">
+          <span class="button-content">
+            <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <use href="icons/ui-sprite.svg#shield-off"></use>
+            </svg>
+            <span>Disarm Current Tab</span>
+          </span>
+        </button>
+      </section>
+
+      <section class="utility-strip" aria-label="Utility controls">
+        <button id="test-button" class="button button-accent" type="button">
+          <span class="button-content">
+            <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <use href="icons/ui-sprite.svg#siren"></use>
+            </svg>
+            <span>Test Alarm</span>
+          </span>
+        </button>
+        <button id="stop-button" class="button button-surface" type="button">
+          <span class="button-content">
+            <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <use href="icons/ui-sprite.svg#stop"></use>
+            </svg>
+            <span>Stop Alarm</span>
+          </span>
+        </button>
+      </section>
+
+      <section class="settings-card">
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">Quick Access</p>
+            <h2 class="heading-with-icon">
+              <svg class="ui-icon ui-icon--lg" viewBox="0 0 24 24" aria-hidden="true">
+                <use href="icons/ui-sprite.svg#sliders"></use>
+              </svg>
+              <span>Open the full dashboard</span>
+            </h2>
+          </div>
+          <button id="disarm-all-button" class="mini-button" type="button">
+            <span class="mini-button-content">
+              <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <use href="icons/ui-sprite.svg#stack-off"></use>
+              </svg>
+              <span>Disarm All Tabs</span>
+            </span>
+          </button>
+        </div>
+        <p class="section-copy">
+          Keep the popup focused on arming and live status. Open the dashboard in a new tab for
+          the full rule editor and the complete list of monitored tabs.
+        </p>
+        <div class="quick-grid">
+          <article
+            id="open-settings-card"
+            class="quick-card is-clickable"
+            data-dashboard-section="rules"
+            role="button"
+            tabindex="0"
+          >
+            <div class="summary-heading">
+              <span class="summary-icon-shell">
+                <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <use href="icons/ui-sprite.svg#sliders"></use>
+                </svg>
+              </span>
+              <span class="summary-label">Default Rules</span>
+            </div>
+            <strong id="rules-summary" class="summary-value">Loading saved defaults...</strong>
+            <span id="rules-note" class="summary-note">These defaults are copied onto a tab when you arm it from the popup.</span>
+            <span class="link-button quick-card-link" aria-hidden="true">
+              <span class="link-content">
+                <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <use href="icons/ui-sprite.svg#sliders"></use>
+                </svg>
+                <span>Open Full Settings</span>
+              </span>
+            </span>
+          </article>
+          <article
+            id="open-tabs-card"
+            class="quick-card is-clickable"
+            data-dashboard-section="tabs"
+            role="button"
+            tabindex="0"
+          >
+            <div class="summary-heading">
+              <span class="summary-icon-shell">
+                <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <use href="icons/ui-sprite.svg#stack"></use>
+                </svg>
+              </span>
+              <span class="summary-label">Monitored Tabs</span>
+            </div>
+            <strong id="tabs-summary" class="summary-value">Loading monitored tabs...</strong>
+            <span id="tabs-note" class="summary-note">Review every armed tab and the exact conditions already applied.</span>
+            <span class="link-button quick-card-link" aria-hidden="true">
+              <span class="link-content">
+                <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <use href="icons/ui-sprite.svg#stack"></use>
+                </svg>
+                <span>View Monitored Tabs</span>
+              </span>
+            </span>
+          </article>
+        </div>
+      </section>
+
+      <section class="status-card" aria-label="Recent alarm state">
+        <div class="summary-heading">
+          <span class="summary-icon-shell">
+            <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <use href="icons/ui-sprite.svg#bell"></use>
+            </svg>
+          </span>
+          <span class="summary-label">Latest Alarm</span>
+        </div>
+        <strong id="last-alarm" class="summary-value">No alarms have fired yet.</strong>
+        <span id="status-text" class="summary-note">Ready. Use the dashboard to adjust defaults, then arm the current tab from here.</span>
+      </section>
+    </main>
+    <script type="module" src="src/popup.js"></script>
+  </body>
+</html>
