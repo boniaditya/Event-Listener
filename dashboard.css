@@ -318,6 +318,14 @@ body.dashboard-page {
   background: linear-gradient(135deg, #152230, #22374b);
 }
 
+.card-actions .mini-button {
+  color: #f8fcff;
+}
+
+.card-actions .mini-button .ui-icon {
+  color: currentColor;
+}
+
 .rule-line strong {
   font-weight: 700;
   color: #35506a;
