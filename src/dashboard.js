@@ -869,8 +869,20 @@ function buildAlarmSoundControl(definition, field) {
   previewButton.dataset.actionKey = definition.key;
   previewButton.type = "button";
   previewButton.append(buildIconText("audio", "Preview", "link-content"));
-  previewButton.addEventListener("click", () => {
-    void previewAlarmSound(select.value);
+  previewButton.addEventListener("click", async () => {
+    const soundDefinition = getAlarmSoundDefinition(select.value);
+
+    try {
+      await sendMessage({
+        durationMs: 2800,
+        soundKey: soundDefinition.key,
+        type: "test-alarm"
+      });
+
+      setStatus(`Previewing ${soundDefinition.label}.`);
+    } catch (error) {
+      handleError(error);
+    }
   });
 
   row.append(select, previewButton);
@@ -1267,22 +1279,6 @@ function handleShortcutFieldKeydown(event) {
 
 function updateShortcutFieldValue(input, value) {
   setShortcutFieldValue(input, value);
-}
-
-async function previewAlarmSound(soundKey) {
-  const definition = getAlarmSoundDefinition(soundKey);
-
-  try {
-    await sendMessage({
-      durationMs: 2800,
-      soundKey: definition.key,
-      type: "test-alarm"
-    });
-
-    setStatus(`Previewing ${definition.label}.`);
-  } catch (error) {
-    handleError(error);
-  }
 }
 
 function formatShortcutFromKeyboardEvent(event) {
