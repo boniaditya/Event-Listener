@@ -96,22 +96,48 @@ body.popup-page {
 }
 
 .summary-icon-shell {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #182433, #284563);
-  color: #76cbff;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(239, 247, 255, 0.98), rgba(224, 237, 249, 0.98));
+  color: #4f78a0;
   box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.06),
-    0 10px 18px rgba(16, 27, 40, 0.12);
+    inset 0 0 0 1px rgba(101, 143, 184, 0.18),
+    0 10px 18px rgba(34, 74, 115, 0.08);
 }
 
 .summary-icon-shell .ui-icon {
   width: 17px;
   height: 17px;
+}
+
+.summary-grid .summary-card:first-child .summary-icon-shell,
+.quick-card:first-child .summary-icon-shell {
+  color: #326f9f;
+  background: linear-gradient(180deg, rgba(234, 248, 255, 0.98), rgba(214, 236, 250, 0.98));
+  box-shadow:
+    inset 0 0 0 1px rgba(77, 165, 219, 0.22),
+    0 10px 20px rgba(66, 143, 204, 0.1);
+}
+
+.summary-grid .summary-card:last-child .summary-icon-shell,
+.quick-card:last-child .summary-icon-shell {
+  color: #46788f;
+  background: linear-gradient(180deg, rgba(236, 247, 249, 0.98), rgba(220, 238, 243, 0.98));
+  box-shadow:
+    inset 0 0 0 1px rgba(93, 151, 173, 0.22),
+    0 10px 20px rgba(59, 110, 130, 0.09);
+}
+
+.status-card .summary-icon-shell {
+  color: #6b74a6;
+  background: linear-gradient(180deg, rgba(245, 244, 255, 0.98), rgba(230, 232, 252, 0.98));
+  box-shadow:
+    inset 0 0 0 1px rgba(133, 137, 205, 0.22),
+    0 10px 20px rgba(99, 104, 177, 0.08);
 }
 
 .button-content,
@@ -132,6 +158,34 @@ body.popup-page {
 
 .heading-with-icon {
   color: inherit;
+}
+
+.dashboard-open-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dashboard-open-trigger:hover:not(:disabled) {
+  color: #36567c;
+}
+
+.dashboard-open-trigger:focus-visible {
+  outline: none;
+  border-radius: 12px;
+  box-shadow: 0 0 0 3px rgba(54, 166, 247, 0.16);
+}
+
+.dashboard-open-trigger:disabled {
+  opacity: 0.68;
+  cursor: progress;
 }
 
 .action-option-head .ui-icon,
@@ -279,13 +333,13 @@ h2 {
   padding: 14px 16px;
   font-size: 15px;
   font-weight: 700;
-  box-shadow: 0 16px 28px rgba(17, 27, 39, 0.16);
+  box-shadow: 0 12px 22px rgba(178, 128, 98, 0.14);
 }
 
 .button:hover:not(:disabled),
 .mini-button:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 18px 30px rgba(17, 27, 39, 0.2);
+  box-shadow: 0 14px 24px rgba(178, 128, 98, 0.16);
 }
 
 .button:disabled,
@@ -296,26 +350,29 @@ h2 {
 }
 
 .button-primary {
-  background: linear-gradient(135deg, #101b28, #26405a);
-  color: #f5fbff;
+  background: linear-gradient(135deg, #f6dcc7, #efc3a0);
+  color: #7a4e2d;
+  border-color: rgba(214, 160, 118, 0.38);
 }
 
 .button-secondary {
-  background: linear-gradient(135deg, #1b70b3, #3caeff);
-  color: #f2fbff;
+  background: linear-gradient(135deg, #f6cec3, #e9ada0);
+  color: #7c433c;
+  border-color: rgba(213, 134, 121, 0.38);
 }
 
 .button-accent {
-  background: linear-gradient(135deg, #233448, #101a25);
-  color: #f4f9ff;
+  background: linear-gradient(135deg, #f8e8b8, #efd68e);
+  color: #776021;
+  border-color: rgba(214, 179, 92, 0.36);
 }
 
 .button-surface,
 .mini-button {
-  background: linear-gradient(135deg, #182433, #263c53);
-  color: #f4f8fd;
-  border: 1px solid rgba(84, 185, 255, 0.18);
-  box-shadow: 0 14px 28px rgba(17, 27, 39, 0.18);
+  background: linear-gradient(135deg, #efd3d8, #deb5c0);
+  color: #714754;
+  border: 1px solid rgba(196, 133, 148, 0.34);
+  box-shadow: 0 10px 22px rgba(167, 112, 129, 0.12);
 }
 
 .settings-card {

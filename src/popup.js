@@ -17,6 +17,7 @@ const armedStatus = document.querySelector("#armed-status");
 const disarmAllButton = document.querySelector("#disarm-all-button");
 const disarmButton = document.querySelector("#disarm-button");
 const lastAlarm = document.querySelector("#last-alarm");
+const openDashboardButton = document.querySelector("#open-dashboard-button");
 const openSettingsCard = document.querySelector("#open-settings-card");
 const openTabsCard = document.querySelector("#open-tabs-card");
 const rulesNote = document.querySelector("#rules-note");
@@ -76,6 +77,12 @@ function wireControls() {
         );
       })
       .catch(handleError);
+  });
+
+  openDashboardButton?.addEventListener("click", () => {
+    if (!busy) {
+      void openDashboardSection("rules");
+    }
   });
 
   wireQuickCard(openSettingsCard);
@@ -239,6 +246,9 @@ function setBusy(isBusy) {
   disarmButton.disabled = isBusy;
   stopButton.disabled = isBusy;
   testButton.disabled = isBusy;
+  if (openDashboardButton instanceof HTMLButtonElement) {
+    openDashboardButton.disabled = isBusy;
+  }
   syncQuickCardState(openSettingsCard, isBusy);
   syncQuickCardState(openTabsCard, isBusy);
 }
