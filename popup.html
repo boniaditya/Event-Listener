@@ -129,6 +129,10 @@
             </div>
             <strong id="rules-summary" class="summary-value">Loading saved defaults...</strong>
             <span id="rules-note" class="summary-note">These defaults are copied onto a tab when you arm it from the popup.</span>
+            <label class="popup-template-picker" for="popup-template-select">
+              <span class="template-label">Template</span>
+              <select id="popup-template-select" class="template-control"></select>
+            </label>
             <span class="link-button quick-card-link" aria-hidden="true">
               <span class="link-content">
                 <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -167,7 +171,14 @@
         </div>
       </section>
 
-      <section class="status-card" aria-label="Recent alarm state">
+      <section
+        id="open-alarm-card"
+        class="status-card is-clickable"
+        data-dashboard-section="tabs"
+        aria-label="Recent alarm state"
+        role="button"
+        tabindex="0"
+      >
         <div class="summary-heading">
           <span class="summary-icon-shell">
             <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">

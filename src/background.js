@@ -5,6 +5,7 @@ import {
   describeAlarm,
   normalizeEventConditions,
   normalizeEventSelections,
+  normalizeRuleTemplate,
   normalizeTriggerActionSettings,
   normalizeTriggerActions,
   normalizeSettings,
@@ -12,9 +13,12 @@ import {
 } from "./monitoring.js";
 
 const OFFSCREEN_PATH = "offscreen.html";
+const FALLBACK_NOTIFICATION_ICON_PATH = "icons/icon-48.png";
+const NOTIFICATION_ICON_PATH = "icons/icon-128.png";
 const NOTIFICATION_ID = "eventlistener-alarm";
 const RUNTIME_ALARM_PREFIX = "eventlistener-runtime";
 const RUNTIME_TIMER_CONDITIONS = [
+  ["scroll", "idleForMinutes"],
   ["tab", "loadingForMinutes"],
   ["audio", "silentForMinutes"],
   ["audio", "activeForMinutes"]
@@ -89,6 +93,8 @@ async function initializeExtension() {
     await syncSessionAlarms(tabId, session, settings);
     await notifyTabMonitoringState(tabId, session);
   }
+
+  await reconcileDueRuntimeConditions(settings);
 }
 
 async function handleMessage(message, sender) {
@@ -105,8 +111,16 @@ async function handleMessage(message, sender) {
       return getPopupState(message.tabId);
     case "get-tab-monitoring-state":
       return getTabMonitoringState(sender.tab?.id);
+    case "page-activity":
+      return handlePageActivity(message, sender.tab);
     case "page-condition-triggered":
       return handlePageConditionTriggered(message, sender.tab);
+    case "delete-rule-template":
+      return deleteRuleTemplate(message);
+    case "save-rule-template":
+      return saveRuleTemplate(message);
+    case "set-active-rule-template":
+      return setActiveRuleTemplate(message);
     case "set-event-configuration":
       return setEventConfiguration(message);
     case "set-event-selections":
@@ -122,6 +136,8 @@ async function handleMessage(message, sender) {
       );
       return { ok: true };
     }
+    case "trigger-due-runtime-condition":
+      return triggerDueRuntimeCondition(message);
     default:
       return { error: `Unknown message type: ${message.type}`, ok: false };
   }
@@ -134,14 +150,25 @@ async function armTab(message) {
 
   const settings = await getSettings();
   const existingSession = settings.monitoredTabs[String(message.tabId)];
+  const requestedTemplateId = normalizeMessageTemplateId(message.templateId);
+  const selectedTemplate = requestedTemplateId
+    ? settings.ruleTemplates.find((template) => template.id === requestedTemplateId)
+    : null;
   const eventSelections = normalizeEventSelections(
-    message.eventSelections || existingSession?.eventSelections || settings.defaultEventSelections
+    selectedTemplate?.eventSelections ||
+      message.eventSelections ||
+      existingSession?.eventSelections ||
+      settings.defaultEventSelections
   );
   const eventConditions = normalizeEventConditions(
-    message.eventConditions || existingSession?.eventConditions || settings.defaultEventConditions
+    selectedTemplate?.eventConditions ||
+      message.eventConditions ||
+      existingSession?.eventConditions ||
+      settings.defaultEventConditions
   );
   const triggerActions = normalizeTriggerActions(
-    message.triggerActions ||
+    selectedTemplate?.triggerActions ||
+      message.triggerActions ||
       message.triggerAction ||
       existingSession?.triggerActions ||
       existingSession?.triggerAction ||
@@ -149,7 +176,8 @@ async function armTab(message) {
       settings.defaultTriggerAction
   );
   const triggerActionSettings = normalizeTriggerActionSettings(
-    message.triggerActionSettings ||
+    selectedTemplate?.triggerActionSettings ||
+      message.triggerActionSettings ||
       existingSession?.triggerActionSettings ||
       settings.defaultTriggerActionSettings
   );
@@ -159,6 +187,8 @@ async function armTab(message) {
     armedAt: Date.now(),
     eventConditions,
     eventSelections,
+    templateId: selectedTemplate?.id || requestedTemplateId,
+    templateName: selectedTemplate?.name || normalizeRuleTemplateNameFromMessage(message.templateName, ""),
     triggerActions,
     triggerActionSettings,
     title: tab?.title || message.title || existingSession?.title || "Untitled tab",
@@ -174,6 +204,7 @@ async function armTab(message) {
   settings.defaultEventSelections = eventSelections;
   settings.defaultTriggerActions = triggerActions;
   settings.defaultTriggerActionSettings = triggerActionSettings;
+  settings.activeRuleTemplateId = selectedTemplate?.id || "";
   settings.monitoredTabs[String(message.tabId)] = session;
 
   await saveSettings(settings);
@@ -215,11 +246,107 @@ async function disarmTab(tabId) {
   return { ok: true };
 }
 
+async function saveRuleTemplate(message) {
+  const settings = await getSettings();
+  const requestedTemplateId = normalizeMessageTemplateId(message.templateId);
+  const requestedName = normalizeRuleTemplateNameFromMessage(message.name, "");
+  const existingIndex = requestedTemplateId
+    ? settings.ruleTemplates.findIndex((template) => template.id === requestedTemplateId)
+    : settings.ruleTemplates.findIndex(
+        (template) => requestedName && template.name.toLowerCase() === requestedName.toLowerCase()
+      );
+  const existingTemplate = existingIndex >= 0 ? settings.ruleTemplates[existingIndex] : null;
+  const now = Date.now();
+  const template = normalizeRuleTemplate({
+    createdAt: existingTemplate?.createdAt || now,
+    eventConditions: message.eventConditions || existingTemplate?.eventConditions || settings.defaultEventConditions,
+    eventSelections: message.eventSelections || existingTemplate?.eventSelections || settings.defaultEventSelections,
+    id: existingTemplate?.id || requestedTemplateId || createRuleTemplateId(),
+    name: requestedName || existingTemplate?.name || buildRuleTemplateFallbackName(settings.ruleTemplates.length + 1),
+    triggerActions:
+      message.triggerActions ||
+      message.triggerAction ||
+      existingTemplate?.triggerActions ||
+      existingTemplate?.triggerAction ||
+      settings.defaultTriggerActions ||
+      settings.defaultTriggerAction,
+    triggerActionSettings:
+      message.triggerActionSettings ||
+      existingTemplate?.triggerActionSettings ||
+      settings.defaultTriggerActionSettings,
+    updatedAt: now
+  });
+
+  if (!template) {
+    throw new Error("Could not save that template.");
+  }
+
+  if (existingIndex >= 0) {
+    settings.ruleTemplates[existingIndex] = template;
+  } else {
+    settings.ruleTemplates.push(template);
+  }
+
+  settings.activeRuleTemplateId = template.id;
+  await saveSettings(settings);
+
+  return {
+    activeRuleTemplateId: settings.activeRuleTemplateId,
+    ok: true,
+    ruleTemplate: template,
+    ruleTemplates: settings.ruleTemplates
+  };
+}
+
+async function deleteRuleTemplate(message) {
+  const settings = await getSettings();
+  const templateId = normalizeMessageTemplateId(message.templateId);
+
+  if (!templateId) {
+    throw new Error("No template was selected to delete.");
+  }
+
+  const beforeCount = settings.ruleTemplates.length;
+  settings.ruleTemplates = settings.ruleTemplates.filter((template) => template.id !== templateId);
+
+  if (settings.activeRuleTemplateId === templateId) {
+    settings.activeRuleTemplateId = "";
+  }
+
+  await saveSettings(settings);
+
+  return {
+    activeRuleTemplateId: settings.activeRuleTemplateId,
+    deleted: settings.ruleTemplates.length !== beforeCount,
+    ok: true,
+    ruleTemplates: settings.ruleTemplates
+  };
+}
+
+async function setActiveRuleTemplate(message) {
+  const settings = await getSettings();
+  const templateId = normalizeMessageTemplateId(message.templateId);
+  const templateExists = templateId
+    ? settings.ruleTemplates.some((template) => template.id === templateId)
+    : false;
+
+  settings.activeRuleTemplateId = templateExists ? templateId : "";
+  await saveSettings(settings);
+
+  return {
+    activeRuleTemplateId: settings.activeRuleTemplateId,
+    ok: true,
+    ruleTemplates: settings.ruleTemplates
+  };
+}
+
 async function getPopupState(tabId) {
   const settings = await getSettings();
+  await reconcileDueRuntimeConditions(settings);
   const session = typeof tabId === "number" ? settings.monitoredTabs[String(tabId)] || null : null;
 
   return {
+    activeRuleTemplateId: settings.activeRuleTemplateId,
     armedTabCount: Object.keys(settings.monitoredTabs).length,
     cooldownMs: settings.cooldownMs,
     defaultEventConditions: settings.defaultEventConditions,
@@ -228,6 +355,7 @@ async function getPopupState(tabId) {
     defaultTriggerActionSettings: settings.defaultTriggerActionSettings,
     lastAlarm: settings.lastAlarm,
     ok: true,
+    ruleTemplates: settings.ruleTemplates,
     session,
     sirenDurationMs: settings.sirenDurationMs
   };
@@ -235,8 +363,10 @@ async function getPopupState(tabId) {
 
 async function getDashboardState() {
   const settings = await getSettings();
+  await reconcileDueRuntimeConditions(settings);
 
   return {
+    activeRuleTemplateId: settings.activeRuleTemplateId,
     armedTabCount: Object.keys(settings.monitoredTabs).length,
     cooldownMs: settings.cooldownMs,
     defaultEventConditions: settings.defaultEventConditions,
@@ -251,6 +381,7 @@ async function getDashboardState() {
       }))
       .sort((left, right) => (right.session?.armedAt || 0) - (left.session?.armedAt || 0)),
     ok: true,
+    ruleTemplates: settings.ruleTemplates,
     sirenDurationMs: settings.sirenDurationMs
   };
 }
@@ -295,57 +426,117 @@ async function handlePageConditionTriggered(message, tab) {
   return maybeTriggerAlarmForSession(settings, session, record);
 }
 
+async function handlePageActivity(message, tab) {
+  if (typeof tab?.id !== "number") {
+    return { ignored: true, ok: true };
+  }
+
+  if (message.category !== "scroll") {
+    return { ignored: true, ok: true };
+  }
+
+  const settings = await getSettings();
+  const session = settings.monitoredTabs[String(tab.id)];
+
+  if (!session || !isConditionEnabled(session, "scroll", "idleForMinutes")) {
+    return { ignored: true, ok: true };
+  }
+
+  const activityAt =
+    typeof message.at === "number" && Number.isFinite(message.at) && message.at > 0
+      ? message.at
+      : Date.now();
+
+  session.runtime.scroll.hasScrolled = true;
+  session.runtime.scroll.lastAt = activityAt;
+  session.runtime.scroll.idleTriggered = false;
+
+  await saveSettings(settings);
+  await syncSessionAlarms(tab.id, session, settings);
+
+  return { ok: true };
+}
+
 async function setEventConfiguration(message) {
   const settings = await getSettings();
+  const hasTemplateSelection = Object.prototype.hasOwnProperty.call(message, "templateId");
+  const requestedTemplateId = hasTemplateSelection
+    ? normalizeMessageTemplateId(message.templateId)
+    : "";
+  const selectedTemplate = requestedTemplateId
+    ? settings.ruleTemplates.find((template) => template.id === requestedTemplateId)
+    : null;
   const eventSelections = normalizeEventSelections(
-    message.eventSelections || settings.defaultEventSelections
+    selectedTemplate?.eventSelections || message.eventSelections || settings.defaultEventSelections
   );
   const eventConditions = normalizeEventConditions(
-    message.eventConditions || settings.defaultEventConditions
+    selectedTemplate?.eventConditions || message.eventConditions || settings.defaultEventConditions
   );
   const triggerActions = normalizeTriggerActions(
-    message.triggerActions ||
+    selectedTemplate?.triggerActions ||
+      message.triggerActions ||
       message.triggerAction ||
       settings.defaultTriggerActions ||
       settings.defaultTriggerAction
   );
   const triggerActionSettings = normalizeTriggerActionSettings(
-    message.triggerActionSettings || settings.defaultTriggerActionSettings
+    selectedTemplate?.triggerActionSettings ||
+      message.triggerActionSettings ||
+      settings.defaultTriggerActionSettings
   );
 
   settings.defaultEventSelections = eventSelections;
   settings.defaultEventConditions = eventConditions;
   settings.defaultTriggerActions = triggerActions;
   settings.defaultTriggerActionSettings = triggerActionSettings;
+  settings.activeRuleTemplateId = selectedTemplate?.id || "";
 
-  if (typeof message.tabId === "number") {
-    const session = settings.monitoredTabs[String(message.tabId)];
+  const targetTabIds = typeof message.tabId === "number"
+    ? [message.tabId]
+    : Object.keys(settings.monitoredTabs).map((tabId) => Number(tabId));
+  const updatedSessions = [];
 
-    if (session) {
-      session.eventSelections = eventSelections;
-      session.eventConditions = eventConditions;
-      session.triggerActions = triggerActions;
-      session.triggerActionSettings = triggerActionSettings;
-      resetSessionRuntime(session, await safeGetTab(message.tabId) || session);
-      await saveSettings(settings);
-      await syncSessionAlarms(message.tabId, session, settings);
-      await notifyTabMonitoringState(message.tabId, session);
-
-      return {
-        eventConditions,
-        eventSelections,
-        triggerActions,
-        triggerActionSettings,
-        ok: true
-      };
+  for (const tabId of targetTabIds) {
+    if (!Number.isFinite(tabId)) {
+      continue;
     }
+
+    const session = settings.monitoredTabs[String(tabId)];
+
+    if (!session) {
+      continue;
+    }
+
+    const shouldResetRuntime = hasSessionRuleConfigChanged(session, eventSelections, eventConditions);
+
+    session.eventSelections = eventSelections;
+    session.eventConditions = eventConditions;
+    session.triggerActions = triggerActions;
+    session.triggerActionSettings = triggerActionSettings;
+    session.templateId = selectedTemplate?.id || "";
+    session.templateName = selectedTemplate?.name || "";
+
+    if (shouldResetRuntime) {
+      resetSessionRuntime(session, await safeGetTab(tabId) || session);
+    }
+
+    updatedSessions.push({
+      session,
+      tabId
+    });
   }
 
   await saveSettings(settings);
 
+  for (const { session, tabId } of updatedSessions) {
+    await syncSessionAlarms(tabId, session, settings);
+    await notifyTabMonitoringState(tabId, session);
+  }
+
   return {
     eventConditions,
     eventSelections,
+    activeRuleTemplateId: settings.activeRuleTemplateId,
     triggerActions,
     triggerActionSettings,
     ok: true
@@ -500,6 +691,64 @@ async function handleRuntimeAlarm(alarm) {
   await syncSessionAlarms(parsed.tabId, session, settings);
 }
 
+async function triggerDueRuntimeCondition(message) {
+  const tabId = Number(message.tabId);
+
+  if (
+    !Number.isFinite(tabId) ||
+    typeof message.category !== "string" ||
+    typeof message.conditionKey !== "string"
+  ) {
+    return {
+      error: "No valid runtime condition was provided.",
+      ok: false
+    };
+  }
+
+  const settings = await getSettings();
+  const session = settings.monitoredTabs[String(tabId)];
+
+  if (!session) {
+    await clearConditionAlarm(tabId, message.category, message.conditionKey);
+    return {
+      ignored: true,
+      ok: true
+    };
+  }
+
+  const record = buildRuntimeConditionRecord(session, tabId, message.category, message.conditionKey);
+
+  if (!record) {
+    await syncSessionAlarms(tabId, session, settings);
+    return {
+      ignored: true,
+      ok: true
+    };
+  }
+
+  const result = await maybeTriggerAlarmForSession(settings, session, record, false);
+
+  if (result.shouldStopProcessing) {
+    return {
+      ...result,
+      ok: true
+    };
+  }
+
+  if (result.triggered) {
+    markRuntimeConditionTriggered(session, message.category, message.conditionKey, true);
+    await saveSettings(settings);
+    await syncSessionAlarms(tabId, session, settings);
+  } else if (result.throttled) {
+    await syncSessionAlarms(tabId, session, settings);
+  }
+
+  return {
+    ...result,
+    ok: true
+  };
+}
+
 async function maybeTriggerAlarmForSession(settings, session, record, persistAfterTrigger = true) {
   const lastTriggeredAt = session.lastTriggeredAtByCategory[record.category] || 0;
   const triggerActions = normalizeTriggerActions(
@@ -552,26 +801,30 @@ async function executeTriggerActions(record, settings, triggerActions, triggerAc
   const normalizedSettings = normalizeTriggerActionSettings(triggerActionSettings);
 
   if (hasTriggerAction(normalized, TRIGGER_ACTIONS.NOTIFICATION)) {
-    await showNotification(record, settings);
+    await runTriggerAction("show the alarm notification", () => showNotification(record, settings));
   }
 
   if (hasTriggerAction(normalized, TRIGGER_ACTIONS.SIREN)) {
-    await playSiren(settings.sirenDurationMs, normalizedSettings[TRIGGER_ACTIONS.SIREN]?.soundKey);
+    await runTriggerAction("play the alarm sound", () =>
+      playSiren(settings.sirenDurationMs, normalizedSettings[TRIGGER_ACTIONS.SIREN]?.soundKey)
+    );
   }
 
   if (hasTriggerAction(normalized, TRIGGER_ACTIONS.SHORTCUT)) {
-    await executeShortcutAction(record.tabId, normalizedSettings[TRIGGER_ACTIONS.SHORTCUT]);
+    await runTriggerAction("run the configured shortcut", () =>
+      executeShortcutAction(record.tabId, normalizedSettings[TRIGGER_ACTIONS.SHORTCUT])
+    );
   }
 
   if (hasTriggerAction(normalized, TRIGGER_ACTIONS.STOP_SHARING)) {
-    await stopTabScreenShare(record.tabId);
+    await runTriggerAction("stop screen sharing", () => stopTabScreenShare(record.tabId));
   }
 
   const closed = hasTriggerAction(normalized, TRIGGER_ACTIONS.CLOSE)
-    ? await closeTriggeredTab(record.tabId)
+    ? Boolean(await runTriggerAction("close the triggered tab", () => closeTriggeredTab(record.tabId)))
     : false;
   const disarmed = hasTriggerAction(normalized, TRIGGER_ACTIONS.DISARM) && !closed
-    ? await disarmTriggeredTab(record.tabId)
+    ? Boolean(await runTriggerAction("disarm the triggered tab", () => disarmTriggeredTab(record.tabId)))
     : false;
 
   return {
@@ -580,16 +833,76 @@ async function executeTriggerActions(record, settings, triggerActions, triggerAc
   };
 }
 
+async function runTriggerAction(description, action) {
+  try {
+    return await action();
+  } catch (error) {
+    console.warn(`EVENTLISTENER could not ${description}.`, error);
+    return null;
+  }
+}
+
+function hasSessionRuleConfigChanged(session, eventSelections, eventConditions) {
+  return (
+    JSON.stringify(session.eventSelections || {}) !== JSON.stringify(eventSelections) ||
+    JSON.stringify(session.eventConditions || {}) !== JSON.stringify(eventConditions)
+  );
+}
+
+function createRuleTemplateId() {
+  const timestamp = Date.now().toString(36);
+  const random = Math.random().toString(36).slice(2, 8);
+  return `template-${timestamp}-${random}`;
+}
+
+function buildRuleTemplateFallbackName(index) {
+  return `Rule template ${Math.max(1, Number(index) || 1)}`;
+}
+
+function normalizeMessageTemplateId(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeRuleTemplateNameFromMessage(value, fallback = "Untitled template") {
+  const normalized = typeof value === "string"
+    ? value.trim().replace(/\s+/g, " ")
+    : "";
+  return (normalized || fallback).slice(0, 80);
+}
+
 async function showNotification(record, settings) {
-  if (settings.notificationsEnabled) {
+  if (!settings.notificationsEnabled) {
+    return;
+  }
+
+  try {
     await chrome.notifications.create(NOTIFICATION_ID, {
-      iconUrl: "icons/icon-128.png",
+      iconUrl: chrome.runtime.getURL(NOTIFICATION_ICON_PATH),
       message: describeAlarm(record),
       priority: 2,
       requireInteraction: true,
       title: "EVENTLISTENER alarm",
       type: "basic"
     });
+  } catch (error) {
+    if (!isNotificationImageError(error)) {
+      throw error;
+    }
+
+    console.warn("EVENTLISTENER notification icon could not be loaded; retrying with the fallback icon.", error);
+
+    try {
+      await chrome.notifications.create(NOTIFICATION_ID, {
+        iconUrl: chrome.runtime.getURL(FALLBACK_NOTIFICATION_ICON_PATH),
+        message: describeAlarm(record),
+        priority: 2,
+        requireInteraction: true,
+        title: "EVENTLISTENER alarm",
+        type: "basic"
+      });
+    } catch (fallbackError) {
+      console.warn("EVENTLISTENER could not show the notification because Chrome rejected the icon image.", fallbackError);
+    }
   }
 }
 
@@ -848,6 +1161,75 @@ async function syncSessionAlarms(tabId, session, settings = settingsCache) {
   }
 }
 
+async function reconcileDueRuntimeConditions(settings) {
+  for (const [tabIdString, session] of Object.entries(settings.monitoredTabs || {})) {
+    const tabId = Number(tabIdString);
+
+    if (!Number.isFinite(tabId) || !session) {
+      continue;
+    }
+
+    const didTrigger = await triggerFirstDueRuntimeCondition(settings, tabId, session);
+
+    if (didTrigger) {
+      break;
+    }
+  }
+}
+
+async function triggerFirstDueRuntimeCondition(settings, tabId, session) {
+  const dueConditions = findDueRuntimeConditions(session, tabId);
+  let shouldResyncAlarms = false;
+
+  for (const dueCondition of dueConditions) {
+    const result = await maybeTriggerAlarmForSession(settings, session, dueCondition.record, false);
+
+    if (result.shouldStopProcessing) {
+      return Boolean(result.triggered);
+    }
+
+    if (result.triggered) {
+      markRuntimeConditionTriggered(session, dueCondition.category, dueCondition.conditionKey, true);
+      await saveSettings(settings);
+      await syncSessionAlarms(tabId, session, settings);
+      return true;
+    }
+
+    if (result.throttled) {
+      shouldResyncAlarms = true;
+    }
+  }
+
+  if (shouldResyncAlarms) {
+    await syncSessionAlarms(tabId, session, settings);
+  }
+
+  return false;
+}
+
+function findDueRuntimeConditions(session, tabId) {
+  const dueConditions = [];
+
+  for (const [category, conditionKey] of RUNTIME_TIMER_CONDITIONS) {
+    const record = buildRuntimeConditionRecord(session, tabId, category, conditionKey);
+
+    if (!record) {
+      continue;
+    }
+
+    const dueAt = getRuntimeConditionDueAt(session, category, conditionKey) || record.time;
+
+    dueConditions.push({
+      category,
+      conditionKey,
+      dueAt,
+      record
+    });
+  }
+
+  return dueConditions.sort((left, right) => left.dueAt - right.dueAt);
+}
+
 async function clearTabAlarms(tabId) {
   for (const [category, conditionKey] of RUNTIME_TIMER_CONDITIONS) {
     await clearConditionAlarm(tabId, category, conditionKey);
@@ -914,10 +1296,14 @@ function resetSessionRuntime(session, tab) {
   session.runtime.tab.loadingSince = isLoading ? now : 0;
   session.runtime.tab.loadingTriggered = false;
   session.runtime.audio.isAudible = isAudible;
+  session.runtime.audio.hasBeenAudible = isAudible;
   session.runtime.audio.audibleSince = isAudible ? now : 0;
   session.runtime.audio.activeTriggered = false;
   session.runtime.audio.silentSince = isAudible ? 0 : now;
   session.runtime.audio.silentTriggered = false;
+  session.runtime.scroll.hasScrolled = false;
+  session.runtime.scroll.lastAt = now;
+  session.runtime.scroll.idleTriggered = false;
 }
 
 function applyAudioState(session, isAudible, now) {
@@ -930,6 +1316,7 @@ function applyAudioState(session, isAudible, now) {
   runtimeAudio.isAudible = isAudible;
 
   if (isAudible) {
+    runtimeAudio.hasBeenAudible = true;
     runtimeAudio.audibleSince = now;
     runtimeAudio.activeTriggered = false;
     runtimeAudio.silentSince = 0;
@@ -949,6 +1336,30 @@ function buildRuntimeConditionRecord(session, tabId, category, conditionKey) {
   }
 
   const now = Date.now();
+
+  if (category === "scroll" && conditionKey === "idleForMinutes") {
+    const minutes = getConditionNumberValue(session, category, conditionKey, "minutes");
+    const dueAt = session.runtime.scroll.lastAt + minutesToMs(minutes);
+
+    if (
+      session.runtime.scroll.idleTriggered ||
+      !session.runtime.scroll.hasScrolled ||
+      session.runtime.scroll.lastAt === 0 ||
+      now < dueAt
+    ) {
+      return null;
+    }
+
+    return buildAlarmRecord({
+      category,
+      detail: `Scrolling stopped for more than ${formatUnit(minutes, "minute")}.`,
+      label: "Scroll idle timeout",
+      tabId,
+      tabTitle: session.title,
+      tabUrl: session.url,
+      time: now
+    });
+  }
 
   if (category === "tab" && conditionKey === "loadingForMinutes") {
     const minutes = getConditionNumberValue(session, category, conditionKey, "minutes");
@@ -1029,6 +1440,20 @@ function getRuntimeConditionDueAt(session, category, conditionKey) {
     return null;
   }
 
+  if (category === "scroll" && conditionKey === "idleForMinutes") {
+    if (
+      session.runtime.scroll.idleTriggered ||
+      !session.runtime.scroll.hasScrolled ||
+      session.runtime.scroll.lastAt === 0
+    ) {
+      return null;
+    }
+
+    return session.runtime.scroll.lastAt + minutesToMs(
+      getConditionNumberValue(session, category, conditionKey, "minutes")
+    );
+  }
+
   if (category === "tab" && conditionKey === "loadingForMinutes") {
     if (session.runtime.tab.loadingTriggered || session.runtime.tab.loadingSince === 0) {
       return null;
@@ -1071,6 +1496,11 @@ function getRuntimeConditionDueAt(session, category, conditionKey) {
 }
 
 function markRuntimeConditionTriggered(session, category, conditionKey, triggered) {
+  if (category === "scroll" && conditionKey === "idleForMinutes") {
+    session.runtime.scroll.idleTriggered = triggered;
+    return;
+  }
+
   if (category === "tab" && conditionKey === "loadingForMinutes") {
     session.runtime.tab.loadingTriggered = triggered;
     return;
@@ -1140,6 +1570,10 @@ function formatUnit(value, unit) {
 
 function isMissingReceiverError(error) {
   return String(error?.message || error).includes("Receiving end does not exist");
+}
+
+function isNotificationImageError(error) {
+  return String(error?.message || error).includes("Unable to download all specified images");
 }
 
 function hasTriggerAction(triggerActions, actionKey) {

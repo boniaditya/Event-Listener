@@ -171,6 +171,10 @@ body.dashboard-page {
   display: none;
 }
 
+.rule-block .event-list {
+  margin-top: 0;
+}
+
 .monitored-list {
   display: grid;
   gap: 12px;
@@ -296,6 +300,48 @@ body.dashboard-page {
   line-height: 1.5;
 }
 
+.rule-line-copy {
+  overflow-wrap: anywhere;
+}
+
+.rule-line-countdown {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(52, 88, 122, 0.1);
+}
+
+.rule-line-countdown-label {
+  color: #59718a;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.countdown-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 118px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(255, 193, 122, 0.34), rgba(255, 149, 112, 0.42));
+  color: #87482a;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.countdown-pill.is-due {
+  background: linear-gradient(135deg, rgba(233, 101, 79, 0.9), rgba(201, 70, 70, 0.92));
+  color: #fff8f5;
+}
+
 .dashboard-utility .mini-button {
   color: #f5fbff;
   border-color: rgba(96, 193, 255, 0.22);
@@ -365,6 +411,15 @@ body.dashboard-page {
 
   .monitored-header {
     flex-direction: column;
+  }
+
+  .rule-line-countdown {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .countdown-pill {
+    min-width: 0;
   }
 
   .dashboard-tab-button {

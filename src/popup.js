@@ -17,9 +17,11 @@ const armedStatus = document.querySelector("#armed-status");
 const disarmAllButton = document.querySelector("#disarm-all-button");
 const disarmButton = document.querySelector("#disarm-button");
 const lastAlarm = document.querySelector("#last-alarm");
+const openAlarmCard = document.querySelector("#open-alarm-card");
 const openDashboardButton = document.querySelector("#open-dashboard-button");
 const openSettingsCard = document.querySelector("#open-settings-card");
 const openTabsCard = document.querySelector("#open-tabs-card");
+const popupTemplateSelect = document.querySelector("#popup-template-select");
 const rulesNote = document.querySelector("#rules-note");
 const rulesSummary = document.querySelector("#rules-summary");
 const statusText = document.querySelector("#status-text");
@@ -40,6 +42,13 @@ let defaultEventSelections = normalizeEventSelections();
 let defaultEventConditions = normalizeEventConditions();
 let defaultTriggerActionSettings = normalizeTriggerActionSettings();
 let defaultTriggerActions = normalizeTriggerActions();
+let savedDefaultEventSelections = normalizeEventSelections();
+let savedDefaultEventConditions = normalizeEventConditions();
+let savedDefaultTriggerActionSettings = normalizeTriggerActionSettings();
+let savedDefaultTriggerActions = normalizeTriggerActions();
+let activeRuleTemplateId = "";
+let currentArmedTabCount = 0;
+let ruleTemplates = [];
 
 wireControls();
 void refreshPopupState();
@@ -85,6 +94,25 @@ function wireControls() {
     }
   });
 
+  popupTemplateSelect?.addEventListener("click", (event) => {
+    event.stopPropagation();
+  });
+
+  popupTemplateSelect?.addEventListener("keydown", (event) => {
+    event.stopPropagation();
+  });
+
+  popupTemplateSelect?.addEventListener("change", () => {
+    activeRuleTemplateId = popupTemplateSelect.value;
+    applySelectedTemplateToPopup();
+    renderTemplatePicker();
+    renderDefaultsSummary({
+      armedTabCount: currentArmedTabCount
+    });
+    void persistActiveTemplateSelection(activeRuleTemplateId);
+  });
+
+  wireQuickCard(openAlarmCard);
   wireQuickCard(openSettingsCard);
   wireQuickCard(openTabsCard);
 }
@@ -102,10 +130,19 @@ async function refreshPopupState() {
 
     const response = await getPopupState();
 
-    defaultEventSelections = response.defaultEventSelections;
-    defaultEventConditions = response.defaultEventConditions;
-    defaultTriggerActionSettings = response.defaultTriggerActionSettings;
-    defaultTriggerActions = response.defaultTriggerActions;
+    savedDefaultEventSelections = response.defaultEventSelections;
+    savedDefaultEventConditions = response.defaultEventConditions;
+    savedDefaultTriggerActionSettings = response.defaultTriggerActionSettings;
+    savedDefaultTriggerActions = response.defaultTriggerActions;
+    defaultEventSelections = savedDefaultEventSelections;
+    defaultEventConditions = savedDefaultEventConditions;
+    defaultTriggerActionSettings = savedDefaultTriggerActionSettings;
+    defaultTriggerActions = savedDefaultTriggerActions;
+    currentArmedTabCount = response.armedTabCount;
+    ruleTemplates = Array.isArray(response.ruleTemplates) ? response.ruleTemplates : [];
+    activeRuleTemplateId = getRuleTemplateById(response.activeRuleTemplateId)?.id || "";
+    applySelectedTemplateToPopup();
+    renderTemplatePicker();
     renderDefaultsSummary(response);
     renderMonitoringState(response);
 
@@ -134,10 +171,14 @@ async function armCurrentTab() {
   setBusy(true);
 
   try {
+    const selectedTemplate = getRuleTemplateById(activeRuleTemplateId);
+
     await sendMessage({
       eventConditions: defaultEventConditions,
       eventSelections: defaultEventSelections,
       tabId: activeTab.id,
+      templateId: selectedTemplate?.id || "",
+      templateName: selectedTemplate?.name || "",
       title: activeTab.title || "Untitled tab",
       triggerActionSettings: defaultTriggerActionSettings,
       triggerActions: defaultTriggerActions,
@@ -145,7 +186,11 @@ async function armCurrentTab() {
       url: activeTab.url || ""
     });
 
-    setStatus("Current tab armed. EVENTLISTENER will use your saved alarm rules on this tab.");
+    setStatus(
+      selectedTemplate
+        ? `Current tab armed with "${selectedTemplate.name}".`
+        : "Current tab armed. EVENTLISTENER will use your saved alarm rules on this tab."
+    );
     await refreshPopupState();
   } catch (error) {
     handleError(error);
@@ -202,20 +247,24 @@ function renderActiveTab() {
 }
 
 function renderDefaultsSummary(response) {
-  const selectedCount = countSelectedEvents(response.defaultEventSelections);
+  const selectedTemplate = getRuleTemplateById(activeRuleTemplateId);
+  const selectedCount = countSelectedEvents(defaultEventSelections);
   const enabledConditionCount = countEnabledConditions(
-    response.defaultEventSelections,
-    response.defaultEventConditions
+    defaultEventSelections,
+    defaultEventConditions
   );
   const soundLabel = getSelectedAlarmSoundLabel(
-    response.defaultTriggerActions,
-    response.defaultTriggerActionSettings
+    defaultTriggerActions,
+    defaultTriggerActionSettings
   );
 
   rulesSummary.textContent = `${selectedCount} event group(s) / ${enabledConditionCount} live condition(s)`;
-  rulesNote.textContent = soundLabel
-    ? `Actions: ${describeTriggerActions(response.defaultTriggerActions)}. Sound: ${soundLabel}.`
-    : `Actions: ${describeTriggerActions(response.defaultTriggerActions)}.`;
+  const actionSummary = soundLabel
+    ? `Actions: ${describeTriggerActions(defaultTriggerActions)}. Sound: ${soundLabel}.`
+    : `Actions: ${describeTriggerActions(defaultTriggerActions)}.`;
+  rulesNote.textContent = selectedTemplate
+    ? `Template: ${selectedTemplate.name}. ${actionSummary}`
+    : actionSummary;
   tabsSummary.textContent = formatTabCount(response.armedTabCount);
   tabsNote.textContent = response.armedTabCount === 0
     ? "No tabs are armed right now."
@@ -239,6 +288,70 @@ function renderMonitoringState(response) {
   lastAlarm.title = fullLastTriggeredText;
 }
 
+function renderTemplatePicker() {
+  if (!(popupTemplateSelect instanceof HTMLSelectElement)) {
+    return;
+  }
+
+  const defaultOption = document.createElement("option");
+  defaultOption.value = "";
+  defaultOption.textContent = ruleTemplates.length === 0
+    ? "No templates saved"
+    : "Saved defaults";
+
+  popupTemplateSelect.replaceChildren(
+    defaultOption,
+    ...ruleTemplates.map((template) => {
+      const option = document.createElement("option");
+      option.value = template.id;
+      option.textContent = template.name;
+      return option;
+    })
+  );
+
+  if (!getRuleTemplateById(activeRuleTemplateId)) {
+    activeRuleTemplateId = "";
+  }
+
+  popupTemplateSelect.value = activeRuleTemplateId;
+  popupTemplateSelect.disabled = busy || ruleTemplates.length === 0;
+}
+
+function applySelectedTemplateToPopup() {
+  const selectedTemplate = getRuleTemplateById(activeRuleTemplateId);
+
+  if (!selectedTemplate) {
+    activeRuleTemplateId = "";
+    defaultEventSelections = normalizeEventSelections(savedDefaultEventSelections);
+    defaultEventConditions = normalizeEventConditions(savedDefaultEventConditions);
+    defaultTriggerActionSettings = normalizeTriggerActionSettings(savedDefaultTriggerActionSettings);
+    defaultTriggerActions = normalizeTriggerActions(savedDefaultTriggerActions);
+    return;
+  }
+
+  defaultEventSelections = normalizeEventSelections(selectedTemplate.eventSelections);
+  defaultEventConditions = normalizeEventConditions(selectedTemplate.eventConditions);
+  defaultTriggerActionSettings = normalizeTriggerActionSettings(selectedTemplate.triggerActionSettings);
+  defaultTriggerActions = normalizeTriggerActions(selectedTemplate.triggerActions);
+}
+
+async function persistActiveTemplateSelection(templateId) {
+  try {
+    await sendMessage({
+      templateId,
+      type: "set-active-rule-template"
+    });
+  } catch (error) {
+    if (!isMissingReceiverError(error)) {
+      console.warn("EVENTLISTENER popup could not save the active template selection.", error);
+    }
+  }
+}
+
+function getRuleTemplateById(templateId) {
+  return ruleTemplates.find((template) => template.id === templateId) || null;
+}
+
 function setBusy(isBusy) {
   busy = isBusy;
   armButton.disabled = isBusy;
@@ -246,9 +359,13 @@ function setBusy(isBusy) {
   disarmButton.disabled = isBusy;
   stopButton.disabled = isBusy;
   testButton.disabled = isBusy;
+  if (popupTemplateSelect instanceof HTMLSelectElement) {
+    popupTemplateSelect.disabled = isBusy || ruleTemplates.length === 0;
+  }
   if (openDashboardButton instanceof HTMLButtonElement) {
     openDashboardButton.disabled = isBusy;
   }
+  syncQuickCardState(openAlarmCard, isBusy);
   syncQuickCardState(openSettingsCard, isBusy);
   syncQuickCardState(openTabsCard, isBusy);
 }
@@ -330,6 +447,7 @@ async function getPopupStateFallback() {
     : null;
 
   return {
+    activeRuleTemplateId: settings.activeRuleTemplateId,
     armedTabCount: Object.keys(settings.monitoredTabs).length,
     cooldownMs: settings.cooldownMs,
     defaultEventConditions: settings.defaultEventConditions,
@@ -339,6 +457,7 @@ async function getPopupStateFallback() {
     degraded: true,
     lastAlarm: settings.lastAlarm,
     ok: true,
+    ruleTemplates: settings.ruleTemplates,
     session,
     sirenDurationMs: settings.sirenDurationMs
   };
@@ -357,7 +476,11 @@ function wireQuickCard(card) {
     return;
   }
 
-  card.addEventListener("click", () => {
+  card.addEventListener("click", (event) => {
+    if (event.target instanceof Element && event.target.closest("button, input, label, select")) {
+      return;
+    }
+
     const sectionId = card.dataset.dashboardSection;
 
     if (!busy && sectionId) {

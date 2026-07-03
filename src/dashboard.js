@@ -33,6 +33,8 @@ const EVENT_ICON_MAP = Object.freeze({
 });
 const ICON_SPRITE_PATH = "icons/ui-sprite.svg";
 const IS_APPLE_PLATFORM = /Mac|iPhone|iPad|iPod/i.test(navigator.platform || "");
+const COUNTDOWN_TICK_MS = 1000;
+const LIVE_COVERAGE_POLL_MS = 2000;
 const SVG_NS = "http://www.w3.org/2000/svg";
 const SHORTCUT_MODIFIER_DEFINITIONS = Object.freeze([
   {
@@ -64,8 +66,10 @@ const dashboardPanels = document.querySelectorAll("[data-dashboard-panel]");
 const disarmAllButton = document.querySelector("#disarm-all-button");
 const eventList = document.querySelector("#event-list");
 const lastAlarm = document.querySelector("#last-alarm");
+const loadTemplateButton = document.querySelector("#load-template-button");
 const monitoredTabsList = document.querySelector("#monitored-tabs");
 const refreshButton = document.querySelector("#refresh-button");
+const saveTemplateButton = document.querySelector("#save-template-button");
 const statusText = document.querySelector("#status-text");
 const summaryActionPlan = document.querySelector("#summary-action-plan");
 const summaryArmedCount = document.querySelector("#summary-armed-count");
@@ -73,17 +77,25 @@ const summaryArmedNote = document.querySelector("#summary-armed-note");
 const summaryCooldown = document.querySelector("#summary-cooldown");
 const summaryRuleCount = document.querySelector("#summary-rule-count");
 const summaryRuleNote = document.querySelector("#summary-rule-note");
+const templateDeleteButton = document.querySelector("#delete-template-button");
+const templateNameInput = document.querySelector("#template-name-input");
+const templateSelect = document.querySelector("#template-select");
 
 let busy = false;
 let currentEventSelections = normalizeEventSelections();
 let currentEventConditions = normalizeEventConditions();
 let currentTriggerActionSettings = normalizeTriggerActionSettings();
 let currentTriggerActions = normalizeTriggerActions();
+let liveCoverageSyncInFlight = false;
+let activeRuleTemplateId = "";
+let ruleTemplates = [];
+const dueRuntimeTriggerRequests = new Set();
 
 renderActionControls();
 renderEventControls();
 wireControls();
 syncDashboardTabFromHash();
+startLiveCoverageTimers();
 void refreshDashboardState();
 
 function wireControls() {
@@ -109,6 +121,23 @@ function wireControls() {
 
   refreshButton.addEventListener("click", () => {
     void refreshDashboardState();
+  });
+
+  templateSelect?.addEventListener("change", () => {
+    activeRuleTemplateId = templateSelect.value;
+    syncTemplateControls(true);
+  });
+
+  loadTemplateButton?.addEventListener("click", () => {
+    void loadSelectedTemplate();
+  });
+
+  saveTemplateButton?.addEventListener("click", () => {
+    void saveCurrentTemplate();
+  });
+
+  templateDeleteButton?.addEventListener("click", () => {
+    void deleteSelectedTemplate();
   });
 
   for (const button of dashboardTabButtons) {
@@ -151,7 +180,10 @@ async function refreshDashboardState() {
     currentEventConditions = response.defaultEventConditions;
     currentTriggerActionSettings = response.defaultTriggerActionSettings;
     currentTriggerActions = response.defaultTriggerActions;
+    ruleTemplates = Array.isArray(response.ruleTemplates) ? response.ruleTemplates : [];
+    activeRuleTemplateId = response.activeRuleTemplateId || "";
 
+    renderTemplateControls();
     syncEventControls(currentEventSelections, currentEventConditions);
     syncTriggerActionControls(currentTriggerActions, currentTriggerActionSettings);
     renderSummary(response);
@@ -160,7 +192,7 @@ async function refreshDashboardState() {
     if (response.degraded) {
       setStatus("Loaded saved settings from storage. Reload the extension if live actions do not respond.");
     } else {
-      setStatus("Saved defaults are ready. Update the rule editor here, then arm tabs from the popup.");
+      setStatus("Saved rules are ready. Updates apply to armed tabs and future tabs.");
     }
   } catch (error) {
     handleError(error);
@@ -230,6 +262,171 @@ async function focusTab(tabId) {
   } catch (error) {
     handleError(new Error("That tab is no longer available."));
   }
+}
+
+function renderTemplateControls() {
+  if (!(templateSelect instanceof HTMLSelectElement)) {
+    return;
+  }
+
+  const defaultOption = document.createElement("option");
+  defaultOption.value = "";
+  defaultOption.textContent = ruleTemplates.length === 0
+    ? "No saved templates yet"
+    : "Saved defaults";
+
+  templateSelect.replaceChildren(
+    defaultOption,
+    ...ruleTemplates.map((template) => {
+      const option = document.createElement("option");
+      option.value = template.id;
+      option.textContent = template.name;
+      return option;
+    })
+  );
+
+  if (!getRuleTemplateById(activeRuleTemplateId)) {
+    activeRuleTemplateId = "";
+  }
+
+  templateSelect.value = activeRuleTemplateId;
+  syncTemplateControls(true);
+}
+
+function syncTemplateControls(syncNameFromSelection = false) {
+  const selectedTemplate = getRuleTemplateById(activeRuleTemplateId);
+
+  if (templateSelect instanceof HTMLSelectElement) {
+    templateSelect.disabled = busy || ruleTemplates.length === 0;
+    templateSelect.value = selectedTemplate?.id || "";
+  }
+
+  if (templateNameInput instanceof HTMLInputElement) {
+    if (syncNameFromSelection) {
+      templateNameInput.value = selectedTemplate?.name || "";
+    }
+
+    templateNameInput.disabled = busy;
+  }
+
+  if (loadTemplateButton instanceof HTMLButtonElement) {
+    loadTemplateButton.disabled = busy || !selectedTemplate;
+  }
+
+  if (templateDeleteButton instanceof HTMLButtonElement) {
+    templateDeleteButton.disabled = busy || !selectedTemplate;
+  }
+
+  if (saveTemplateButton instanceof HTMLButtonElement) {
+    saveTemplateButton.disabled = busy;
+  }
+}
+
+async function loadSelectedTemplate() {
+  const template = getRuleTemplateById(activeRuleTemplateId);
+
+  if (!template) {
+    setStatus("Choose a saved template to load.");
+    return;
+  }
+
+  applyRuleTemplateToEditor(template);
+  setBusy(true);
+
+  try {
+    await sendMessage({
+      eventConditions: currentEventConditions,
+      eventSelections: currentEventSelections,
+      templateId: template.id,
+      triggerActionSettings: currentTriggerActionSettings,
+      triggerActions: currentTriggerActions,
+      type: "set-event-configuration"
+    });
+
+    await refreshDashboardState();
+    setStatus(`Loaded "${template.name}" as the active rule template.`);
+  } catch (error) {
+    handleError(error);
+    setBusy(false);
+  }
+}
+
+async function saveCurrentTemplate() {
+  const name = templateNameInput instanceof HTMLInputElement
+    ? templateNameInput.value.trim()
+    : "";
+  const selectedTemplate = getRuleTemplateById(activeRuleTemplateId);
+  const templateName = name || selectedTemplate?.name || buildTemplateFallbackName();
+
+  setBusy(true);
+
+  try {
+    const response = await sendMessage({
+      eventConditions: currentEventConditions,
+      eventSelections: currentEventSelections,
+      name: templateName,
+      templateId: selectedTemplate?.id || "",
+      triggerActionSettings: currentTriggerActionSettings,
+      triggerActions: currentTriggerActions,
+      type: "save-rule-template"
+    });
+
+    ruleTemplates = Array.isArray(response.ruleTemplates) ? response.ruleTemplates : ruleTemplates;
+    activeRuleTemplateId = response.activeRuleTemplateId || response.ruleTemplate?.id || "";
+    renderTemplateControls();
+    setStatus(`Saved "${response.ruleTemplate?.name || templateName}" as a rule template.`);
+  } catch (error) {
+    handleError(error);
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function deleteSelectedTemplate() {
+  const template = getRuleTemplateById(activeRuleTemplateId);
+
+  if (!template) {
+    setStatus("Choose a saved template to delete.");
+    return;
+  }
+
+  setBusy(true);
+
+  try {
+    const response = await sendMessage({
+      templateId: template.id,
+      type: "delete-rule-template"
+    });
+
+    ruleTemplates = Array.isArray(response.ruleTemplates) ? response.ruleTemplates : [];
+    activeRuleTemplateId = response.activeRuleTemplateId || "";
+    renderTemplateControls();
+    setStatus(`Deleted "${template.name}".`);
+  } catch (error) {
+    handleError(error);
+  } finally {
+    setBusy(false);
+  }
+}
+
+function applyRuleTemplateToEditor(template) {
+  currentEventSelections = normalizeEventSelections(template.eventSelections);
+  currentEventConditions = normalizeEventConditions(template.eventConditions);
+  currentTriggerActionSettings = normalizeTriggerActionSettings(template.triggerActionSettings);
+  currentTriggerActions = normalizeTriggerActions(template.triggerActions);
+  activeRuleTemplateId = template.id;
+
+  syncEventControls(currentEventSelections, currentEventConditions);
+  syncTriggerActionControls(currentTriggerActions, currentTriggerActionSettings);
+  syncTemplateControls(true);
+}
+
+function getRuleTemplateById(templateId) {
+  return ruleTemplates.find((template) => template.id === templateId) || null;
+}
+
+function buildTemplateFallbackName() {
+  return `Rule template ${ruleTemplates.length + 1}`;
 }
 
 function renderActionControls() {
@@ -566,7 +763,7 @@ function collectTriggerActionSettings() {
 
 async function persistEventConfiguration(successMessage) {
   try {
-    await sendMessage({
+    const response = await sendMessage({
       eventConditions: currentEventConditions,
       eventSelections: currentEventSelections,
       triggerActionSettings: currentTriggerActionSettings,
@@ -574,6 +771,8 @@ async function persistEventConfiguration(successMessage) {
       type: "set-event-configuration"
     });
 
+    activeRuleTemplateId = response.activeRuleTemplateId || "";
+    renderTemplateControls();
     setStatus(successMessage);
   } catch (error) {
     handleError(error);
@@ -597,7 +796,7 @@ function renderSummary(response) {
   summaryRuleCount.textContent = `${selectedCount} event group(s) / ${enabledConditionCount} live condition(s)`;
   summaryRuleNote.textContent = selectedCount === 0
     ? "All event groups are currently off by default."
-    : "These defaults are copied when you arm a tab from the popup.";
+    : "These rules update currently armed tabs and future tabs.";
   summaryActionPlan.textContent = buildActionPlanSummary(
     response.defaultTriggerActions,
     response.defaultTriggerActionSettings
@@ -623,6 +822,7 @@ function renderMonitoredTabs(monitoredTabs) {
   monitoredTabsList.replaceChildren(
     ...monitoredTabs.map(({ session, tabId }) => buildMonitoredTabCard(session, tabId))
   );
+  updateCountdownDisplays();
 }
 
 function buildMonitoredTabCard(session, tabId) {
@@ -654,26 +854,55 @@ function buildMonitoredTabCard(session, tabId) {
 
   const metaRow = document.createElement("div");
   metaRow.className = "meta-row";
-  metaRow.append(
+  const metaChips = [
     buildMetaChip(`Armed at ${formatTimestamp(session.armedAt)}`, "clock"),
     buildMetaChip(toSentenceCase(describeTriggerActions(session.triggerActions)), "spark")
-  );
+  ];
+
+  if (session.templateName) {
+    metaChips.push(buildMetaChip(`Template: ${session.templateName}`, "rule-list"));
+  }
+
+  metaRow.append(...metaChips);
 
   const detailGrid = document.createElement("div");
   detailGrid.className = "monitored-detail-grid";
 
   const actionsCard = document.createElement("div");
   actionsCard.className = "detail-card";
-  actionsCard.append(
-    buildDetailLabel("Actions", "spark"),
-    buildDetailCopy(buildTriggerActionCopy(session.triggerActions, session.triggerActionSettings))
-  );
+  actionsCard.append(buildDetailLabel("Actions", "spark"));
+
+  const actionLines = buildTriggerActionLines(session.triggerActions, session.triggerActionSettings);
+
+  if (actionLines.length === 0) {
+    actionsCard.append(buildDetailCopy("No actions are selected for this tab."));
+  } else {
+    const actionList = document.createElement("div");
+    actionList.className = "rule-list action-list";
+
+    for (const line of actionLines) {
+      const item = document.createElement("div");
+      item.className = "rule-line action-line";
+
+      const copy = document.createElement("div");
+      copy.className = "rule-line-copy";
+
+      const label = document.createElement("strong");
+      label.textContent = `${line.label}: `;
+
+      copy.append(label, document.createTextNode(line.copy));
+      item.append(copy);
+      actionList.append(item);
+    }
+
+    actionsCard.append(actionList);
+  }
 
   const rulesCard = document.createElement("div");
   rulesCard.className = "detail-card";
   rulesCard.append(buildDetailLabel("Applied conditions", "sliders"));
 
-  const ruleLines = buildRuleLines(session.eventSelections, session.eventConditions);
+  const ruleLines = buildRuleLines(session);
 
   if (ruleLines.length === 0) {
     rulesCard.append(
@@ -687,10 +916,19 @@ function buildMonitoredTabCard(session, tabId) {
       const item = document.createElement("div");
       item.className = "rule-line";
 
+      const copy = document.createElement("div");
+      copy.className = "rule-line-copy";
+
       const label = document.createElement("strong");
       label.textContent = `${line.label}: `;
 
-      item.append(label, document.createTextNode(line.copy));
+      copy.append(label, document.createTextNode(line.copy));
+      item.append(copy);
+
+      if (line.countdown) {
+        item.append(buildRuleCountdown(line.countdown, tabId));
+      }
+
       ruleList.append(item);
     }
 
@@ -721,22 +959,24 @@ function buildMonitoredTabCard(session, tabId) {
   return card;
 }
 
-function buildRuleLines(eventSelections, eventConditions) {
+function buildRuleLines(session) {
   const lines = [];
+  const countdownLookup = buildRuntimeCountdownLookup(session);
 
   for (const definition of EVENT_DEFINITIONS) {
-    if (!eventSelections?.[definition.key]) {
+    if (!session.eventSelections?.[definition.key]) {
       continue;
     }
 
     for (const condition of definition.conditions || []) {
-      const config = eventConditions?.[definition.key]?.[condition.key];
+      const config = session.eventConditions?.[definition.key]?.[condition.key];
 
       if (!config?.enabled) {
         continue;
       }
 
       lines.push({
+        countdown: countdownLookup.get(`${definition.key}:${condition.key}`) || null,
         copy: buildConditionSentence(condition, config.values),
         label: definition.label
       });
@@ -744,6 +984,135 @@ function buildRuleLines(eventSelections, eventConditions) {
   }
 
   return lines;
+}
+
+function buildTriggerActionLines(triggerActions, triggerActionSettings) {
+  const normalizedActions = normalizeTriggerActions(triggerActions);
+  const normalizedSettings = normalizeTriggerActionSettings(triggerActionSettings);
+  const lines = [];
+
+  for (const definition of TRIGGER_ACTION_DEFINITIONS) {
+    if (!normalizedActions[definition.key]) {
+      continue;
+    }
+
+    lines.push({
+      copy: buildTriggerActionLineCopy(definition, normalizedSettings),
+      label: definition.label
+    });
+  }
+
+  return lines;
+}
+
+function buildTriggerActionLineCopy(definition, normalizedSettings) {
+  if (definition.key === TRIGGER_ACTIONS.SIREN) {
+    const soundName = getAlarmSoundDefinition(normalizedSettings.siren?.soundKey).label;
+    return `Selected sound: ${soundName}.`;
+  }
+
+  if (definition.key === TRIGGER_ACTIONS.NOTIFICATION) {
+    return "Shows a desktop notification with the alarm details.";
+  }
+
+  if (definition.key === TRIGGER_ACTIONS.SHORTCUT) {
+    const shortcut = String(normalizedSettings.shortcut?.accelerator || "").trim();
+    return shortcut ? `Runs ${shortcut} on the monitored page.` : "No shortcut is configured yet.";
+  }
+
+  if (definition.key === TRIGGER_ACTIONS.STOP_SHARING) {
+    return "Attempts to stop page-managed screen shares the extension can still reach.";
+  }
+
+  if (definition.key === TRIGGER_ACTIONS.CLOSE) {
+    return "Closes the monitored tab after the earlier selected actions run.";
+  }
+
+  if (definition.key === TRIGGER_ACTIONS.DISARM) {
+    return "Stops monitoring this tab after the rule fires.";
+  }
+
+  return definition.description || "Runs when a monitored rule fires.";
+}
+
+function buildRuntimeCountdownLookup(session) {
+  const countdowns = new Map();
+  const runtime = session?.runtime || {};
+
+  addRuntimeCountdown(
+    countdowns,
+    session,
+    "scroll",
+    "idleForMinutes",
+    runtime.scroll?.lastAt,
+    minutesToMs(getConditionNumberValue(session, "scroll", "idleForMinutes", "minutes")),
+    Boolean(runtime.scroll?.hasScrolled) && !runtime.scroll?.idleTriggered
+  );
+  addRuntimeCountdown(
+    countdowns,
+    session,
+    "audio",
+    "silentForMinutes",
+    runtime.audio?.silentSince,
+    minutesToMs(getConditionNumberValue(session, "audio", "silentForMinutes", "minutes")),
+    !runtime.audio?.isAudible && !runtime.audio?.silentTriggered
+  );
+  addRuntimeCountdown(
+    countdowns,
+    session,
+    "audio",
+    "activeForMinutes",
+    runtime.audio?.audibleSince,
+    minutesToMs(getConditionNumberValue(session, "audio", "activeForMinutes", "minutes")),
+    Boolean(runtime.audio?.isAudible) && !runtime.audio?.activeTriggered
+  );
+  addRuntimeCountdown(
+    countdowns,
+    session,
+    "tab",
+    "loadingForMinutes",
+    runtime.tab?.loadingSince,
+    minutesToMs(getConditionNumberValue(session, "tab", "loadingForMinutes", "minutes")),
+    !runtime.tab?.loadingTriggered && Number(runtime.tab?.loadingSince) > 0
+  );
+
+  return countdowns;
+}
+
+function addRuntimeCountdown(
+  countdowns,
+  session,
+  categoryKey,
+  conditionKey,
+  startedAt,
+  durationMs,
+  isActive
+) {
+  if (
+    !session?.eventSelections?.[categoryKey] ||
+    !session?.eventConditions?.[categoryKey]?.[conditionKey]?.enabled ||
+    !isActive
+  ) {
+    return;
+  }
+
+  const normalizedStartedAt = Number(startedAt);
+  const normalizedDurationMs = Number(durationMs);
+
+  if (
+    !Number.isFinite(normalizedStartedAt) ||
+    normalizedStartedAt <= 0 ||
+    !Number.isFinite(normalizedDurationMs) ||
+    normalizedDurationMs <= 0
+  ) {
+    return;
+  }
+
+  countdowns.set(`${categoryKey}:${conditionKey}`, {
+    categoryKey,
+    conditionKey,
+    dueAt: normalizedStartedAt + normalizedDurationMs
+  });
 }
 
 function buildConditionSentence(condition, values = {}) {
@@ -754,6 +1123,25 @@ function buildConditionSentence(condition, values = {}) {
 
     return values[token.fieldKey] ?? "";
   }).join(" ").replace(/\s+([.,%])/g, "$1").trim();
+}
+
+function buildRuleCountdown(countdown, tabId) {
+  const row = document.createElement("div");
+  row.className = "rule-line-countdown";
+
+  const label = buildIconText("clock", "Condition met", "rule-line-countdown-label");
+
+  const pill = document.createElement("span");
+  pill.className = "countdown-pill";
+  pill.dataset.countdownCategory = countdown.categoryKey;
+  pill.dataset.countdownCondition = countdown.conditionKey;
+  pill.dataset.countdownDueAt = String(countdown.dueAt);
+  pill.dataset.countdownTabId = String(tabId);
+  pill.title = `Due at ${formatTimestamp(countdown.dueAt)}`;
+
+  updateCountdownPill(pill);
+  row.append(label, pill);
+  return row;
 }
 
 function buildMetaChip(label, iconName) {
@@ -1388,32 +1776,6 @@ function isModifierKey(key) {
   return ["Alt", "Control", "Meta", "Shift"].includes(key);
 }
 
-function buildTriggerActionCopy(triggerActions, triggerActionSettings) {
-  const normalizedActions = normalizeTriggerActions(triggerActions);
-  const normalizedSettings = normalizeTriggerActionSettings(triggerActionSettings);
-  const segments = [`When a rule fires, EVENTLISTENER will ${describeTriggerActions(triggerActions)}.`];
-
-  if (normalizedActions.siren) {
-    const soundName = getAlarmSoundDefinition(normalizedSettings.siren?.soundKey).label;
-    segments.push(`Selected sound: ${soundName}.`);
-  }
-
-  if (normalizedActions.shortcut) {
-    const shortcut = String(normalizedSettings.shortcut?.accelerator || "").trim();
-    segments.push(
-      shortcut
-        ? `Configured shortcut: ${shortcut}.`
-        : "Configured shortcut: not set yet."
-    );
-  }
-
-  if (normalizedActions.stopSharing) {
-    segments.push("Screen-share stop only affects page-managed shares that the extension can still reach.");
-  }
-
-  return segments.join(" ");
-}
-
 function buildActionPlanSummary(triggerActions, triggerActionSettings) {
   const summary = toSentenceCase(describeTriggerActions(triggerActions));
   const normalizedActions = normalizeTriggerActions(triggerActions);
@@ -1520,12 +1882,146 @@ function applyDashboardTabState(activeTab) {
     const isActive = panel.dataset.dashboardPanel === activeTab;
     panel.hidden = !isActive;
   }
+
+  if (activeTab === "tabs") {
+    updateCountdownDisplays();
+
+    if (!busy) {
+      void refreshLiveCoverageState();
+    }
+  }
+}
+
+function startLiveCoverageTimers() {
+  window.setInterval(() => {
+    if (!isLiveCoverageTabActive()) {
+      return;
+    }
+
+    updateCountdownDisplays();
+  }, COUNTDOWN_TICK_MS);
+
+  window.setInterval(() => {
+    if (!isLiveCoverageTabActive() || busy || liveCoverageSyncInFlight || document.hidden) {
+      return;
+    }
+
+    void refreshLiveCoverageState();
+  }, LIVE_COVERAGE_POLL_MS);
+}
+
+function isLiveCoverageTabActive() {
+  return window.location.hash === "#tabs";
+}
+
+async function refreshLiveCoverageState() {
+  liveCoverageSyncInFlight = true;
+
+  try {
+    const response = await getDashboardState();
+    renderSummary(response);
+    renderMonitoredTabs(response.monitoredTabs);
+  } catch (error) {
+    if (!isMissingReceiverError(error)) {
+      console.warn("EVENTLISTENER could not refresh live countdowns.", error);
+    }
+  } finally {
+    liveCoverageSyncInFlight = false;
+  }
+}
+
+function updateCountdownDisplays() {
+  for (const pill of monitoredTabsList.querySelectorAll("[data-countdown-due-at]")) {
+    if (pill instanceof HTMLElement) {
+      updateCountdownPill(pill);
+    }
+  }
+}
+
+function updateCountdownPill(element) {
+  const dueAt = Number(element.dataset.countdownDueAt);
+
+  if (!Number.isFinite(dueAt) || dueAt <= 0) {
+    element.textContent = "Unavailable";
+    element.classList.remove("is-due");
+    return;
+  }
+
+  const remainingMs = Math.max(0, dueAt - Date.now());
+  const isDue = remainingMs === 0;
+
+  element.textContent = isDue
+    ? "Due now"
+    : `${formatCountdownDuration(remainingMs)} remaining`;
+  element.classList.toggle("is-due", isDue);
+
+  if (isDue) {
+    void requestDueRuntimeTrigger(element);
+  }
+}
+
+async function requestDueRuntimeTrigger(element) {
+  const tabId = Number(element.dataset.countdownTabId);
+  const category = element.dataset.countdownCategory;
+  const conditionKey = element.dataset.countdownCondition;
+  const dueAt = Number(element.dataset.countdownDueAt);
+  const requestKey = `${tabId}:${category}:${conditionKey}:${dueAt}`;
+
+  if (
+    !Number.isFinite(tabId) ||
+    !category ||
+    !conditionKey ||
+    !Number.isFinite(dueAt) ||
+    dueRuntimeTriggerRequests.has(requestKey)
+  ) {
+    return;
+  }
+
+  dueRuntimeTriggerRequests.add(requestKey);
+
+  try {
+    await sendMessage({
+      category,
+      conditionKey,
+      tabId,
+      type: "trigger-due-runtime-condition"
+    });
+
+    if (isLiveCoverageTabActive() && !liveCoverageSyncInFlight) {
+      await refreshLiveCoverageState();
+    }
+  } catch (error) {
+    console.warn("EVENTLISTENER could not trigger the due runtime condition from live coverage.", error);
+    dueRuntimeTriggerRequests.delete(requestKey);
+  }
+}
+
+function getConditionNumberValue(session, categoryKey, conditionKey, fieldKey) {
+  return Number(session?.eventConditions?.[categoryKey]?.[conditionKey]?.values?.[fieldKey] || 0);
+}
+
+function minutesToMs(value) {
+  return Number(value) * 60 * 1000;
+}
+
+function formatCountdownDuration(durationMs) {
+  const totalSeconds = Math.max(0, Math.ceil(durationMs / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  }
+
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
 function setBusy(isBusy) {
   busy = isBusy;
   disarmAllButton.disabled = isBusy;
   refreshButton.disabled = isBusy;
+  syncTemplateControls();
   syncEventControls(currentEventSelections, currentEventConditions);
   syncTriggerActionControls(currentTriggerActions);
 
@@ -1607,6 +2103,7 @@ async function getDashboardStateFallback() {
   const settings = normalizeSettings(stored[STORAGE_KEY]);
 
   return {
+    activeRuleTemplateId: settings.activeRuleTemplateId,
     armedTabCount: Object.keys(settings.monitoredTabs).length,
     cooldownMs: settings.cooldownMs,
     defaultEventConditions: settings.defaultEventConditions,
@@ -1622,6 +2119,7 @@ async function getDashboardStateFallback() {
       }))
       .sort((left, right) => (right.session?.armedAt || 0) - (left.session?.armedAt || 0)),
     ok: true,
+    ruleTemplates: settings.ruleTemplates,
     sirenDurationMs: settings.sirenDurationMs
   };
 }

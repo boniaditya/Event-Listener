@@ -14,6 +14,8 @@ import {
   describeTriggerActions,
   normalizeEventConditions,
   normalizeEventSelections,
+  normalizeRuleTemplate,
+  normalizeRuleTemplates,
   normalizeSettings,
   normalizeTriggerActionSettings,
   normalizeTriggerActions,
@@ -131,12 +133,75 @@ test("sanitizeTabSession keeps event bookkeeping, runtime state, conditions, and
   assert.equal(session.triggerActions.shortcut, true);
   assert.equal(session.triggerActionSettings.siren.soundKey, "beacon");
   assert.equal(session.triggerActionSettings.shortcut.accelerator, "Ctrl+Shift+Y");
+  assert.equal(session.templateId, "");
+  assert.equal(session.templateName, "");
   assert.equal(typeof session.lastTriggeredAtByCategory.click, "number");
   assert.equal(typeof session.runtime.audio.silentSince, "number");
+  assert.equal(session.runtime.audio.hasBeenAudible, false);
+  assert.equal(typeof session.runtime.scroll.lastAt, "number");
+  assert.equal(session.runtime.scroll.hasScrolled, false);
+  assert.equal(session.runtime.scroll.idleTriggered, false);
+});
+
+test("normalizeRuleTemplate stores rules and trigger actions together", () => {
+  const template = normalizeRuleTemplate({
+    eventConditions: {
+      audio: {
+        silentForMinutes: {
+          enabled: true,
+          values: {
+            minutes: 2
+          }
+        }
+      }
+    },
+    eventSelections: {
+      audio: true
+    },
+    id: " template-1 ",
+    name: "  Silent audio setup  ",
+    triggerActions: {
+      notification: true,
+      siren: false,
+      shortcut: true
+    },
+    triggerActionSettings: {
+      shortcut: {
+        accelerator: "Ctrl+Shift+M"
+      }
+    }
+  });
+
+  assert.equal(template.id, "template-1");
+  assert.equal(template.name, "Silent audio setup");
+  assert.equal(template.eventSelections.audio, true);
+  assert.equal(template.eventConditions.audio.silentForMinutes.enabled, true);
+  assert.equal(template.eventConditions.audio.silentForMinutes.values.minutes, 2);
+  assert.equal(template.triggerActions.notification, true);
+  assert.equal(template.triggerActions.shortcut, true);
+  assert.equal(template.triggerActions.siren, false);
+  assert.equal(template.triggerActionSettings.shortcut.accelerator, "Ctrl+Shift+M");
+});
+
+test("normalizeRuleTemplates accepts object maps and removes duplicate ids", () => {
+  const templates = normalizeRuleTemplates({
+    first: {
+      name: "First"
+    },
+    second: {
+      id: "first",
+      name: "Duplicate"
+    }
+  });
+
+  assert.equal(templates.length, 1);
+  assert.equal(templates[0].id, "first");
+  assert.equal(templates[0].name, "First");
 });
 
 test("normalizeSettings preserves monitored tab sessions and default actions", () => {
   const settings = normalizeSettings({
+    activeRuleTemplateId: "reading",
     defaultEventConditions: {
       audio: {
         silentForMinutes: {
@@ -167,13 +232,29 @@ test("normalizeSettings preserves monitored tab sessions and default actions", (
     },
     monitoredTabs: {
       12: {
+        templateId: "reading",
+        templateName: "Reading",
         title: "Legacy tab"
       }
     },
+    ruleTemplates: [
+      {
+        eventSelections: {
+          scroll: true
+        },
+        id: "reading",
+        name: "Reading"
+      }
+    ],
     schemaVersion: 5
   });
 
   assert.equal(settings.monitoredTabs["12"].title, "Legacy tab");
+  assert.equal(settings.monitoredTabs["12"].templateId, "reading");
+  assert.equal(settings.monitoredTabs["12"].templateName, "Reading");
+  assert.equal(settings.activeRuleTemplateId, "reading");
+  assert.equal(settings.ruleTemplates.length, 1);
+  assert.equal(settings.ruleTemplates[0].eventSelections.scroll, true);
   assert.equal(settings.defaultEventSelections.audio, true);
   assert.equal(settings.defaultEventConditions.audio.silentForMinutes.enabled, true);
   assert.equal(settings.defaultEventConditions.audio.silentForMinutes.values.minutes, 12);

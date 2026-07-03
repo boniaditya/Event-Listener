@@ -3,6 +3,8 @@ if (!globalThis.__eventlistenerContentLoaded) {
 
   const BRIDGE_MESSAGE_SOURCE = "eventlistener-bridge";
   let bridgeRequestCounter = 0;
+  let extensionContextValid = true;
+  let mutationObserver = null;
 
   let monitoringState = {
     armed: false,
@@ -49,9 +51,9 @@ if (!globalThis.__eventlistenerContentLoaded) {
 
   async function initializeMonitoringState() {
     try {
-      const response = await chrome.runtime.sendMessage({
+      const response = await sendRuntimeMessage({
         type: "get-tab-monitoring-state"
-      });
+      }, "EVENTLISTENER content bootstrap failed.");
 
       if (response?.ok) {
         monitoringState = {
@@ -62,8 +64,8 @@ if (!globalThis.__eventlistenerContentLoaded) {
 
         resetPageConditionState();
       }
-    } catch (error) {
-      console.warn("EVENTLISTENER content bootstrap failed.", error);
+    } catch (_error) {
+      // sendRuntimeMessage handles logging and stale-extension cleanup.
     }
   }
 
@@ -121,9 +123,10 @@ if (!globalThis.__eventlistenerContentLoaded) {
           return;
         }
 
-        scrollState.lastAt = Date.now();
-        scrollState.idleTriggered = false;
-        scheduleScrollIdleTimeout();
+        const now = Date.now();
+
+        scrollState.lastAt = now;
+        queueScrollActivityReport(now);
         evaluateScrollDepth();
       },
       {
@@ -146,7 +149,7 @@ if (!globalThis.__eventlistenerContentLoaded) {
   }
 
   function attachMutationObserver() {
-    const mutationObserver = new MutationObserver((mutations) => {
+    mutationObserver = new MutationObserver((mutations) => {
       if (!isEventEnabled("dom")) {
         return;
       }
@@ -180,7 +183,6 @@ if (!globalThis.__eventlistenerContentLoaded) {
     }
 
     scheduleClickIdleTimeout();
-    scheduleScrollIdleTimeout();
     scheduleKeyboardIdleTimeout();
     scheduleVisibilityTimeouts();
     scheduleDomIdleTimeout();
@@ -188,7 +190,7 @@ if (!globalThis.__eventlistenerContentLoaded) {
 
   function clearAllTimers() {
     window.clearTimeout(clickState.idleTimer);
-    window.clearTimeout(scrollState.idleTimer);
+    window.clearTimeout(scrollState.activityReportTimer);
     window.clearTimeout(keyboardState.idleTimer);
     window.clearTimeout(visibilityState.hiddenTimer);
     window.clearTimeout(visibilityState.visibleTimer);
@@ -221,29 +223,25 @@ if (!globalThis.__eventlistenerContentLoaded) {
     }, waitMs);
   }
 
-  function scheduleScrollIdleTimeout() {
-    window.clearTimeout(scrollState.idleTimer);
-
+  function queueScrollActivityReport(activityAt) {
     if (!isConditionEnabled("scroll", "idleForMinutes")) {
       return;
     }
 
-    const minutes = getNumberValue("scroll", "idleForMinutes", "minutes");
-    const waitMs = Math.max(0, scrollState.lastAt + minutesToMs(minutes) - Date.now());
+    if (activityAt - scrollState.lastReportedAt >= 1000) {
+      scrollState.lastReportedAt = activityAt;
+      void reportPageActivity("scroll", activityAt);
+    }
 
-    scrollState.idleTimer = window.setTimeout(() => {
-      if (!isConditionEnabled("scroll", "idleForMinutes") || scrollState.idleTriggered) {
+    window.clearTimeout(scrollState.activityReportTimer);
+    scrollState.activityReportTimer = window.setTimeout(() => {
+      if (scrollState.lastReportedAt >= scrollState.lastAt) {
         return;
       }
 
-      scrollState.idleTriggered = true;
-      void emitCondition(
-        "scroll",
-        "idleForMinutes",
-        "Scroll idle timeout",
-        `Scrolling stopped for more than ${formatUnit(minutes, "minute")}.`
-      );
-    }, waitMs);
+      scrollState.lastReportedAt = scrollState.lastAt;
+      void reportPageActivity("scroll", scrollState.lastAt);
+    }, 200);
   }
 
   function scheduleKeyboardIdleTimeout() {
@@ -450,7 +448,11 @@ if (!globalThis.__eventlistenerContentLoaded) {
   }
 
   function isEventEnabled(category) {
-    return Boolean(monitoringState.armed && monitoringState.eventSelections?.[category]);
+    return Boolean(
+      extensionContextValid &&
+      monitoringState.armed &&
+      monitoringState.eventSelections?.[category]
+    );
   }
 
   function isConditionEnabled(category, conditionKey) {
@@ -473,18 +475,61 @@ if (!globalThis.__eventlistenerContentLoaded) {
   }
 
   async function emitCondition(category, conditionKey, label, detail) {
-    try {
-      await chrome.runtime.sendMessage({
-        category,
-        conditionKey,
-        detail,
-        label,
-        pageUrl: window.location.href,
-        type: "page-condition-triggered"
-      });
-    } catch (error) {
-      console.warn("EVENTLISTENER could not report a condition trigger.", error);
+    await sendRuntimeMessage({
+      category,
+      conditionKey,
+      detail,
+      label,
+      pageUrl: window.location.href,
+      type: "page-condition-triggered"
+    }, "EVENTLISTENER could not report a condition trigger.");
+  }
+
+  async function reportPageActivity(category, at) {
+    await sendRuntimeMessage({
+      at,
+      category,
+      type: "page-activity"
+    }, "EVENTLISTENER could not report page activity.");
+  }
+
+  async function sendRuntimeMessage(message, warningMessage) {
+    if (!extensionContextValid) {
+      return null;
     }
+
+    try {
+      return await chrome.runtime.sendMessage(message);
+    } catch (error) {
+      if (isExtensionContextInvalidatedError(error)) {
+        deactivateStaleContentScript();
+        return null;
+      }
+
+      console.warn(warningMessage, error);
+      return null;
+    }
+  }
+
+  function deactivateStaleContentScript() {
+    if (!extensionContextValid) {
+      return;
+    }
+
+    extensionContextValid = false;
+    monitoringState = {
+      armed: false,
+      eventConditions: {},
+      eventSelections: {}
+    };
+
+    clearAllTimers();
+    mutationObserver?.disconnect();
+    globalThis.__eventlistenerContentLoaded = false;
+  }
+
+  function isExtensionContextInvalidatedError(error) {
+    return String(error?.message || error).includes("Extension context invalidated");
   }
 
   function describeElement(target) {
@@ -525,10 +570,10 @@ if (!globalThis.__eventlistenerContentLoaded) {
 
   function createScrollState() {
     return {
+      activityReportTimer: 0,
       depthTriggered: false,
-      idleTimer: 0,
-      idleTriggered: false,
-      lastAt: Date.now()
+      lastAt: Date.now(),
+      lastReportedAt: 0
     };
   }
 

@@ -1,5 +1,6 @@
 export const STORAGE_KEY = "eventlistener-settings";
-export const SETTINGS_SCHEMA_VERSION = 6;
+export const SETTINGS_SCHEMA_VERSION = 7;
+export const RULE_TEMPLATE_NAME_MAX_LENGTH = 80;
 
 export const EVENT_DEFINITIONS = [
   {
@@ -570,6 +571,7 @@ export const DEFAULT_TRIGGER_ACTIONS = Object.freeze({
 export const DEFAULT_TRIGGER_ACTION_SETTINGS = Object.freeze(buildDefaultTriggerActionSettings());
 
 export const DEFAULT_SETTINGS = Object.freeze({
+  activeRuleTemplateId: "",
   cooldownMs: 6000,
   defaultEventConditions: DEFAULT_EVENT_CONDITIONS,
   defaultEventSelections: DEFAULT_EVENT_SELECTIONS,
@@ -578,6 +580,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   lastAlarm: null,
   monitoredTabs: {},
   notificationsEnabled: true,
+  ruleTemplates: [],
   schemaVersion: SETTINGS_SCHEMA_VERSION,
   sirenDurationMs: 8000
 });
@@ -638,6 +641,8 @@ export function sanitizeTabSession(value = {}) {
       title,
       url
     }),
+    templateId: normalizeRuleTemplateId(value.templateId),
+    templateName: normalizeRuleTemplateName(value.templateName, ""),
     triggerActions: normalizeTriggerActions(value.triggerActions ?? value.triggerAction),
     triggerActionSettings: normalizeTriggerActionSettings(value.triggerActionSettings),
     title,
@@ -645,9 +650,65 @@ export function sanitizeTabSession(value = {}) {
   };
 }
 
+export function normalizeRuleTemplate(value = {}, fallbackId = "") {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const id = normalizeRuleTemplateId(value.id || fallbackId);
+
+  if (!id) {
+    return null;
+  }
+
+  const createdAt = normalizeTimestamp(
+    value.createdAt,
+    normalizeTimestamp(value.updatedAt, 0)
+  );
+  const updatedAt = normalizeTimestamp(value.updatedAt, createdAt);
+
+  return {
+    createdAt,
+    eventConditions: normalizeEventConditions(value.eventConditions),
+    eventSelections: normalizeEventSelections(value.eventSelections),
+    id,
+    name: normalizeRuleTemplateName(value.name),
+    triggerActions: normalizeTriggerActions(value.triggerActions ?? value.triggerAction),
+    triggerActionSettings: normalizeTriggerActionSettings(value.triggerActionSettings),
+    updatedAt
+  };
+}
+
+export function normalizeRuleTemplates(value) {
+  const entries = Array.isArray(value)
+    ? value.map((template) => [template?.id, template])
+    : Object.entries(value || {});
+  const templates = [];
+  const seenIds = new Set();
+
+  for (const [fallbackId, templateValue] of entries) {
+    const template = normalizeRuleTemplate(templateValue, fallbackId);
+
+    if (!template || seenIds.has(template.id)) {
+      continue;
+    }
+
+    seenIds.add(template.id);
+    templates.push(template);
+  }
+
+  return templates;
+}
+
 export function normalizeSettings(value = {}) {
-  const isCurrentSchema = [SETTINGS_SCHEMA_VERSION, 5, 4, 3, 2].includes(value.schemaVersion);
+  const isCurrentSchema = [SETTINGS_SCHEMA_VERSION, 6, 5, 4, 3, 2].includes(value.schemaVersion);
   const monitoredTabs = {};
+  const ruleTemplates = isCurrentSchema ? normalizeRuleTemplates(value.ruleTemplates) : [];
+  const activeRuleTemplateId = ruleTemplates.some(
+    (template) => template.id === normalizeRuleTemplateId(value.activeRuleTemplateId)
+  )
+    ? normalizeRuleTemplateId(value.activeRuleTemplateId)
+    : "";
 
   if (isCurrentSchema) {
     for (const [tabId, session] of Object.entries(value.monitoredTabs || {})) {
@@ -656,6 +717,7 @@ export function normalizeSettings(value = {}) {
   }
 
   return {
+    activeRuleTemplateId,
     cooldownMs: normalizePositiveNumber(value.cooldownMs, DEFAULT_SETTINGS.cooldownMs),
     defaultEventConditions: isCurrentSchema
       ? normalizeEventConditions(value.defaultEventConditions)
@@ -672,6 +734,7 @@ export function normalizeSettings(value = {}) {
     lastAlarm: isCurrentSchema ? normalizeAlarmRecord(value.lastAlarm) : null,
     monitoredTabs,
     notificationsEnabled: value.notificationsEnabled ?? DEFAULT_SETTINGS.notificationsEnabled,
+    ruleTemplates,
     schemaVersion: SETTINGS_SCHEMA_VERSION,
     sirenDurationMs: normalizePositiveNumber(value.sirenDurationMs, DEFAULT_SETTINGS.sirenDurationMs)
   };
@@ -910,16 +973,33 @@ function normalizeTriggeredMap(value) {
   return normalized;
 }
 
+function normalizeRuleTemplateId(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeRuleTemplateName(value, fallback = "Untitled template") {
+  const normalized = typeof value === "string"
+    ? value.trim().replace(/\s+/g, " ")
+    : "";
+  return (normalized || fallback).slice(0, RULE_TEMPLATE_NAME_MAX_LENGTH);
+}
+
 function normalizeSessionRuntime(value, seed) {
   const baseTime = typeof seed.armedAt === "number" ? seed.armedAt : Date.now();
 
   return {
     audio: {
       audibleSince: normalizeTimestamp(value?.audio?.audibleSince, 0),
+      hasBeenAudible: Boolean(value?.audio?.hasBeenAudible),
       isAudible: Boolean(value?.audio?.isAudible),
       activeTriggered: Boolean(value?.audio?.activeTriggered),
       silentSince: normalizeTimestamp(value?.audio?.silentSince, baseTime),
       silentTriggered: Boolean(value?.audio?.silentTriggered)
+    },
+    scroll: {
+      hasScrolled: Boolean(value?.scroll?.hasScrolled),
+      idleTriggered: Boolean(value?.scroll?.idleTriggered),
+      lastAt: normalizeTimestamp(value?.scroll?.lastAt, baseTime)
     },
     tab: {
       currentTitle:

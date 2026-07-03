@@ -149,6 +149,56 @@
               These settings are the template that EVENTLISTENER uses the next time you arm a tab
               from the popup.
             </p>
+            <section class="action-block template-block" aria-label="Rule templates">
+              <span class="action-title action-title-row">
+                <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <use href="icons/ui-sprite.svg#rule-list"></use>
+                </svg>
+                <span>Rule Templates</span>
+              </span>
+              <div class="template-layout">
+                <label class="template-field" for="template-select">
+                  <span class="template-label">Use template</span>
+                  <select id="template-select" class="template-control"></select>
+                </label>
+                <div class="template-button-row">
+                  <button id="load-template-button" class="mini-button template-button" type="button">
+                    <span class="mini-button-content">
+                      <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <use href="icons/ui-sprite.svg#stack"></use>
+                      </svg>
+                      <span>Load</span>
+                    </span>
+                  </button>
+                  <button id="delete-template-button" class="mini-button template-button" type="button">
+                    <span class="mini-button-content">
+                      <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <use href="icons/ui-sprite.svg#stack-off"></use>
+                      </svg>
+                      <span>Delete</span>
+                    </span>
+                  </button>
+                </div>
+                <label class="template-field" for="template-name-input">
+                  <span class="template-label">Template name</span>
+                  <input
+                    id="template-name-input"
+                    class="template-control"
+                    type="text"
+                    maxlength="80"
+                    placeholder="Name this rule and alarm setup"
+                  >
+                </label>
+                <button id="save-template-button" class="mini-button template-button" type="button">
+                  <span class="mini-button-content">
+                    <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                      <use href="icons/ui-sprite.svg#spark"></use>
+                    </svg>
+                    <span>Save Template</span>
+                  </span>
+                </button>
+              </div>
+            </section>
             <section class="action-block" aria-label="Triggered actions">
               <span class="action-title action-title-row">
                 <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -158,7 +208,15 @@
               </span>
               <div id="action-choice" class="action-choice" role="group" aria-label="Triggered actions"></div>
             </section>
-            <div id="event-list" class="event-list" role="group" aria-label="Event type selection"></div>
+            <section class="action-block rule-block" aria-label="Rule selection">
+              <span class="action-title action-title-row">
+                <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <use href="icons/ui-sprite.svg#sliders"></use>
+                </svg>
+                <span>Rules To Watch</span>
+              </span>
+              <div id="event-list" class="event-list" role="group" aria-label="Event type selection"></div>
+            </section>
           </section>
 
           <section
