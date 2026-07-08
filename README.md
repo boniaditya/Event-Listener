@@ -96,7 +96,7 @@ EVENTLISTENER lets you arm a tab, define what kind of behavior should be watched
 1. Open `chrome://extensions/` in Chrome.
 2. Turn on `Developer mode`.
 3. Click `Load unpacked`.
-4. Select the `/Users/Aditya/Documents/event listener` folder.
+4. Select the `Download/Event-Listener` folder.
 5. Open the EVENTLISTENER popup from the Chrome toolbar.
 6. Use `Open the full dashboard` to set your saved default event groups, conditions, actions, alarm sound, and shortcut behavior.
 7. Return to the popup and click `Arm Current Tab` to apply those saved defaults to the active tab.
