@@ -1017,7 +1017,9 @@ function buildTriggerActionLineCopy(definition, normalizedSettings) {
 
   if (definition.key === TRIGGER_ACTIONS.SHORTCUT) {
     const shortcut = String(normalizedSettings.shortcut?.accelerator || "").trim();
-    return shortcut ? `Runs ${shortcut} on the monitored page.` : "No shortcut is configured yet.";
+    return shortcut
+      ? `${shortcut} runs on the monitored page. Tab-close shortcuts close this monitored tab through EVENTLISTENER.`
+      : "No shortcut is configured yet.";
   }
 
   if (definition.key === TRIGGER_ACTIONS.STOP_SHARING) {

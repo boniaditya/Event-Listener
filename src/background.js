@@ -17,6 +17,9 @@ const FALLBACK_NOTIFICATION_ICON_PATH = "icons/icon-48.png";
 const NOTIFICATION_ICON_PATH = "icons/icon-128.png";
 const NOTIFICATION_ID = "eventlistener-alarm";
 const RUNTIME_ALARM_PREFIX = "eventlistener-runtime";
+const BROWSER_SHORTCUT_ACTIONS = Object.freeze({
+  CLOSE_TAB: "close-tab"
+});
 const RUNTIME_TIMER_CONDITIONS = [
   ["scroll", "idleForMinutes"],
   ["tab", "loadingForMinutes"],
@@ -810,10 +813,19 @@ async function executeTriggerActions(record, settings, triggerActions, triggerAc
     );
   }
 
+  let shortcutResult = null;
+
   if (hasTriggerAction(normalized, TRIGGER_ACTIONS.SHORTCUT)) {
-    await runTriggerAction("run the configured shortcut", () =>
+    shortcutResult = await runTriggerAction("run the configured shortcut", () =>
       executeShortcutAction(record.tabId, normalizedSettings[TRIGGER_ACTIONS.SHORTCUT])
     );
+
+    if (shortcutResult?.closed) {
+      return {
+        closed: true,
+        disarmed: false
+      };
+    }
   }
 
   if (hasTriggerAction(normalized, TRIGGER_ACTIONS.STOP_SHARING)) {
@@ -942,6 +954,14 @@ async function executeShortcutAction(tabId, shortcutSettings = {}) {
     return false;
   }
 
+  const browserShortcutAction = resolveBrowserShortcutAction(shortcut);
+
+  if (browserShortcutAction === BROWSER_SHORTCUT_ACTIONS.CLOSE_TAB) {
+    return {
+      closed: await closeTriggeredTab(tabId)
+    };
+  }
+
   const response = await sendTabActionMessage(tabId, {
     shortcut,
     type: "execute-shortcut"
@@ -955,7 +975,94 @@ async function executeShortcutAction(tabId, shortcutSettings = {}) {
     return false;
   }
 
-  return true;
+  return {
+    ran: true
+  };
+}
+
+function resolveBrowserShortcutAction(shortcut) {
+  const parsedShortcut = parseShortcutTokens(shortcut);
+
+  if (!parsedShortcut.primaryKey) {
+    return "";
+  }
+
+  if (
+    parsedShortcut.primaryKey === "w" &&
+    parsedShortcut.modifiers.size === 1 &&
+    (parsedShortcut.modifiers.has("ctrl") || parsedShortcut.modifiers.has("meta"))
+  ) {
+    return BROWSER_SHORTCUT_ACTIONS.CLOSE_TAB;
+  }
+
+  if (
+    parsedShortcut.primaryKey === "f4" &&
+    parsedShortcut.modifiers.size === 1 &&
+    parsedShortcut.modifiers.has("ctrl")
+  ) {
+    return BROWSER_SHORTCUT_ACTIONS.CLOSE_TAB;
+  }
+
+  return "";
+}
+
+function parseShortcutTokens(shortcut) {
+  const modifiers = new Set();
+  let primaryKey = "";
+
+  for (const token of String(shortcut || "").split("+")) {
+    const normalizedToken = normalizeShortcutToken(token);
+
+    if (!normalizedToken) {
+      continue;
+    }
+
+    const modifierKey = normalizeShortcutModifier(normalizedToken);
+
+    if (modifierKey) {
+      modifiers.add(modifierKey);
+      continue;
+    }
+
+    primaryKey = normalizeShortcutPrimaryKey(normalizedToken);
+  }
+
+  return {
+    modifiers,
+    primaryKey
+  };
+}
+
+function normalizeShortcutToken(token) {
+  return String(token || "").trim().toLowerCase().replace(/\s+/g, "");
+}
+
+function normalizeShortcutModifier(token) {
+  if (token === "ctrl" || token === "control") {
+    return "ctrl";
+  }
+
+  if (token === "cmd" || token === "command" || token === "meta") {
+    return "meta";
+  }
+
+  if (token === "alt" || token === "option") {
+    return "alt";
+  }
+
+  if (token === "shift") {
+    return "shift";
+  }
+
+  return "";
+}
+
+function normalizeShortcutPrimaryKey(token) {
+  if (token === "keyw") {
+    return "w";
+  }
+
+  return token;
 }
 
 async function stopTabScreenShare(tabId) {
@@ -1121,7 +1228,17 @@ async function sendTabActionMessage(tabId, message) {
     };
   }
 
+  await ensureContentScript(tabId, url);
+  await ensurePageBridge(tabId, url);
+
   try {
+    const response = await chrome.tabs.sendMessage(tabId, message);
+
+    if (!isMissingPageBridgeResponse(response)) {
+      return response;
+    }
+
+    await ensurePageBridge(tabId, url);
     return await chrome.tabs.sendMessage(tabId, message);
   } catch (error) {
     if (!isMissingReceiverError(error)) {
@@ -1142,6 +1259,13 @@ async function sendTabActionMessage(tabId, message) {
       };
     }
   }
+}
+
+function isMissingPageBridgeResponse(response) {
+  return (
+    response?.ok === false &&
+    String(response.error || "").includes("monitored page did not respond")
+  );
 }
 
 async function syncSessionAlarms(tabId, session, settings = settingsCache) {

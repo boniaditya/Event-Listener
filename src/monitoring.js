@@ -538,7 +538,7 @@ export const TRIGGER_ACTION_DEFINITIONS = Object.freeze([
         placeholder: "Ctrl+Shift+K or Space",
         type: "text",
         defaultValue: "",
-        description: "Works with in-page shortcuts, not Chrome or operating-system shortcuts."
+        description: "Runs in-page shortcuts. Ctrl+W, Cmd+W, and Ctrl+F4 close the monitored tab through EVENTLISTENER."
       }
     ]
   },

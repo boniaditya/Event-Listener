@@ -1,7 +1,7 @@
 if (!globalThis.__eventlistenerContentLoaded) {
   globalThis.__eventlistenerContentLoaded = true;
 
-  const BRIDGE_MESSAGE_SOURCE = "eventlistener-bridge";
+  const BRIDGE_MESSAGE_SOURCE = "eventlistener-bridge-v2";
   let bridgeRequestCounter = 0;
   let extensionContextValid = true;
   let mutationObserver = null;
