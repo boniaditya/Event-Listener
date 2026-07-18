@@ -1,0 +1,276 @@
+<h1>EVENTLISTENER</h1>
+
+<p><strong>EVENTLISTENER</strong> is a Chrome extension for monitoring live tab and page activity, then automatically running selected actions when your rules are matched. It is designed for people who need Chrome to keep watch over a page while they focus on something else.</p>
+
+<p>With EVENTLISTENER, you can arm a tab, choose the activity you want to monitor, define the conditions that matter, and decide what should happen when a rule fires. The extension can help with alerts, workflow shortcuts, screen-share cleanup, tab cleanup, notifications, and other browser-based monitoring tasks.</p>
+
+<h2>Quick Summary</h2>
+
+<table>
+  <tbody>
+    <tr>
+      <td><strong>Product name</strong></td>
+      <td>EVENTLISTENER</td>
+    </tr>
+    <tr>
+      <td><strong>Type</strong></td>
+      <td>Chrome extension</td>
+    </tr>
+    <tr>
+      <td><strong>Main purpose</strong></td>
+      <td>Monitor tab and page conditions, then run one or more actions when selected rules are matched.</td>
+    </tr>
+    <tr>
+      <td><strong>Primary interface</strong></td>
+      <td>Popup controls and full dashboard</td>
+    </tr>
+    <tr>
+      <td><strong>Supported browser</strong></td>
+      <td>Google Chrome and Chromium-based browsers that support Manifest V3 extensions</td>
+    </tr>
+    <tr>
+      <td><strong>Mature content</strong></td>
+      <td>No. EVENTLISTENER is a productivity and browser automation tool.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>What EVENTLISTENER Does</h2>
+
+<p>EVENTLISTENER helps you monitor activity in a browser tab. Instead of repeatedly checking whether a page changed, whether audio started or stopped, whether a title changed, whether a page has been idle, or whether a tab has stayed visible or hidden, you can configure EVENTLISTENER to watch those signals for you.</p>
+
+<p>When a monitored condition matches your saved rule, EVENTLISTENER can run one or more actions. For example, it can play an alarm sound, show a notification, run a shortcut on the page, stop an active screen share when supported, close the tab, or disarm the tab after the rule fires.</p>
+
+<h2>Core Idea</h2>
+
+<p>The extension is built around a simple workflow:</p>
+
+<ol>
+  <li><strong>Choose what to monitor.</strong> Select one or more event groups such as tab activity, audio, clicks, scrolling, keyboard activity, visibility, or DOM changes.</li>
+  <li><strong>Set the condition.</strong> Decide what should count as a rule match, such as inactivity, a burst of activity, a URL change, a title change, or a long loading state.</li>
+  <li><strong>Choose the action.</strong> Pick what should happen when the rule fires.</li>
+  <li><strong>Arm a tab.</strong> Apply your saved rules to the current tab from the popup.</li>
+  <li><strong>Let EVENTLISTENER watch.</strong> The extension monitors the selected signals and runs the configured actions when a rule matches.</li>
+</ol>
+
+<h2>Main Features</h2>
+
+<ul>
+  <li>Monitor multiple signal types from the same tab.</li>
+  <li>Configure saved default rules from the dashboard.</li>
+  <li>Apply saved defaults quickly from the popup.</li>
+  <li>Run more than one action when the same rule fires.</li>
+  <li>Review all armed tabs from the live coverage view.</li>
+  <li>Preview alarm sounds before saving them.</li>
+  <li>Configure shortcut actions using manual controls or keyboard capture.</li>
+  <li>Use cooldown settings to avoid repeated alerts firing too quickly.</li>
+  <li>Disarm tabs manually or automatically after a rule fires.</li>
+  <li>Use popup controls for quick arming, disarming, testing, and dashboard access.</li>
+</ul>
+
+<h2>Monitored Event Groups</h2>
+
+<h3>Tab Activity</h3>
+
+<p>The tab activity monitor can watch for changes related to the current tab, such as URL changes, title changes, and long loading states. This is useful when a website redirects, a web app changes views, a page title updates with status information, or a page takes longer than expected to finish loading.</p>
+
+<h3>Audio And Media</h3>
+
+<p>The audio and media monitor can help detect when a tab has audio activity or when audio remains silent for too long. This can be useful for calls, streams, media sessions, live dashboards, notification sounds, or pages where sound activity matters.</p>
+
+<h3>Clicks</h3>
+
+<p>The click monitor can watch for click inactivity or click bursts within a time window. This is useful when a page requires interaction, when you want to know whether a tab has been idle, or when repeated clicks should trigger a follow-up action.</p>
+
+<h3>Scrolling</h3>
+
+<p>The scrolling monitor can detect scroll inactivity or when a page crosses a selected scroll-depth threshold. This can help with long reading pages, review workflows, dashboards, documentation, feeds, or pages where scroll progress matters.</p>
+
+<h3>Keyboard Activity</h3>
+
+<p>The keyboard monitor can detect typing inactivity or typing bursts. This is useful for pages where keyboard input is part of the workflow, such as forms, editors, chat tools, web apps, dashboards, and internal tools.</p>
+
+<h3>Visibility</h3>
+
+<p>The visibility monitor can detect when a page stays hidden or visible for too long. This can help when you want to know if a monitored page has remained in the background, or if a page that should be monitored has stayed visible for a certain amount of time.</p>
+
+<h3>DOM Changes</h3>
+
+<p>The DOM changes monitor can detect quiet periods or bursts of page mutations. This is useful for web pages that update dynamically, such as dashboards, live content, queues, tables, feeds, and other web applications where page content changes without a full reload.</p>
+
+<h2>Trigger Actions</h2>
+
+<h3>Play Alarm Sound</h3>
+
+<p>EVENTLISTENER includes a built-in alarm sound library. You can select an alarm sound and preview it before saving it as part of your rule setup. Alarm sounds are useful when you need an immediate audible signal that a monitored condition has been met.</p>
+
+<h3>Show Notification</h3>
+
+<p>The extension can show a browser notification when a rule fires. Notifications can help you notice a rule match even when Chrome is not the active window, depending on your browser and operating system notification settings.</p>
+
+<h3>Run Shortcut</h3>
+
+<p>EVENTLISTENER can send a configured keyboard shortcut into the monitored page. This is intended for in-page shortcuts, not Chrome-level or operating-system-level shortcuts. Some pages may block scripted keyboard events or may not respond to injected shortcuts.</p>
+
+<h3>Stop Screen Share</h3>
+
+<p>When supported by the page and browser context, EVENTLISTENER can attempt to stop an active screen share from the monitored page. This can be useful for cleanup workflows where a rule should end sharing after a condition is met.</p>
+
+<h3>Close Tab</h3>
+
+<p>The extension can close the monitored tab after a rule fires. This is useful for temporary pages, completed monitoring sessions, or workflows where the tab should be cleaned up automatically.</p>
+
+<h3>Disarm Tab</h3>
+
+<p>EVENTLISTENER can disarm the monitored tab after a rule fires. This prevents the same monitoring setup from continuing after the selected event has already happened.</p>
+
+<h2>Popup Controls</h2>
+
+<p>The popup is designed for quick use. It lets you see the current tab, check whether it is armed, arm the current tab using saved defaults, disarm the current tab, test the alarm, stop an active alarm, and open the full dashboard.</p>
+
+<p>The popup is useful when you have already configured your preferred defaults in the dashboard and want to apply them quickly to the tab you are currently viewing.</p>
+
+<h2>Dashboard</h2>
+
+<p>The dashboard is where you manage the full monitoring setup. It includes saved defaults, rule templates, event groups, trigger actions, cooldown settings, alarm sound preview, shortcut configuration, and live coverage for currently armed tabs.</p>
+
+<p>The dashboard is designed for deeper setup work. Use it when you want to adjust conditions, change actions, preview sounds, manage shortcut behavior, or review which tabs are currently being monitored.</p>
+
+<h2>Live Coverage View</h2>
+
+<p>The live coverage view shows which tabs are currently armed and what monitoring rules are active. This helps you understand what EVENTLISTENER is watching right now and makes it easier to focus, disarm, or review monitored tabs.</p>
+
+<h2>Rule Templates And Saved Defaults</h2>
+
+<p>EVENTLISTENER can use saved default rules so that you do not need to rebuild the same monitoring setup every time. Configure the dashboard once, save the defaults, and then use the popup to apply those defaults quickly to the current tab.</p>
+
+<h2>Alarm Sound Library</h2>
+
+<p>The extension includes multiple built-in alarm sound options. Depending on the version, examples may include sounds such as ambulance, klaxon, warning, airhorn, radar, bell, reactor, and other alert-style sounds. The dashboard lets you preview sounds before using them.</p>
+
+<h2>Shortcut Configuration</h2>
+
+<p>Shortcut actions can be configured manually or through keyboard capture. This makes it easier to build the shortcut you want to send into a monitored page. Because websites handle keyboard input differently, shortcut behavior can vary by website.</p>
+
+<h2>Cooldown Settings</h2>
+
+<p>Cooldown settings help prevent repeated alerts from firing too frequently. For example, if a monitored condition happens repeatedly in a short time, cooldown behavior can help keep actions from becoming noisy or disruptive.</p>
+
+<h2>Example Use Cases</h2>
+
+<ul>
+  <li>Play an alarm if a tab has been silent for too long.</li>
+  <li>Show a notification when a page title changes.</li>
+  <li>Run a shortcut after a period of click inactivity.</li>
+  <li>Close a temporary tab after a monitoring condition is met.</li>
+  <li>Detect when a dynamic page becomes quiet after a burst of DOM changes.</li>
+  <li>Track whether a monitored tab has stayed hidden or visible for too long.</li>
+  <li>Monitor a page that changes content without a full reload.</li>
+  <li>Disarm monitoring automatically after a rule fires once.</li>
+</ul>
+
+<h2>Who EVENTLISTENER Is For</h2>
+
+<p>EVENTLISTENER may be useful for people who work with browser-based dashboards, web applications, live pages, media tabs, internal tools, documentation, forms, feeds, queues, or temporary monitoring sessions.</p>
+
+<p>It is intended for users who want practical browser monitoring controls without building custom scripts for every page.</p>
+
+<h2>Permissions Explained</h2>
+
+<p>Chrome extensions require permissions so they can perform the features they advertise. EVENTLISTENER may request permissions such as alarms, notifications, offscreen behavior, scripting, storage, tabs, and access to pages where monitoring is used.</p>
+
+<h3>Alarms</h3>
+
+<p>The alarms permission helps the extension schedule and manage time-based checks and cooldown behavior.</p>
+
+<h3>Notifications</h3>
+
+<p>The notifications permission allows EVENTLISTENER to show browser notifications when configured actions fire.</p>
+
+<h3>Storage</h3>
+
+<p>The storage permission allows EVENTLISTENER to save your dashboard settings, rules, selected actions, alarm choices, shortcut settings, and monitoring preferences.</p>
+
+<h3>Tabs</h3>
+
+<p>The tabs permission helps the extension identify and manage tabs that are armed for monitoring.</p>
+
+<h3>Scripting And Page Access</h3>
+
+<p>Scripting and page access permissions allow the extension to monitor selected page activity and run supported actions in the current page context. Some pages, including Chrome internal pages and restricted browser pages, may not allow normal extension behavior.</p>
+
+<h2>Privacy Summary</h2>
+
+<p>EVENTLISTENER is designed as a browser-based monitoring tool. Its settings and rules are stored using Chrome extension storage. The extension is intended to monitor the tabs you choose to arm and run the actions you configure.</p>
+
+<p>EVENTLISTENER does not exist to sell personal data. It is a productivity utility for browser monitoring and automation. Always review the Chrome Web Store listing and any published privacy policy for the most current privacy details.</p>
+
+<h2>Important Notes And Limitations</h2>
+
+<ul>
+  <li>Some browser pages, such as Chrome internal pages, may restrict extension access.</li>
+  <li>Some websites may block injected keyboard shortcuts or scripted page actions.</li>
+  <li>Notification behavior depends on Chrome and operating system notification settings.</li>
+  <li>Audio behavior can depend on browser autoplay policies, tab state, and system audio settings.</li>
+  <li>Screen-share cleanup depends on what the browser and page allow.</li>
+  <li>DOM monitoring works best on pages where content changes are visible to normal page scripts.</li>
+  <li>Rules should be tested on the actual pages where you plan to use them.</li>
+</ul>
+
+<h2>How To Start Using EVENTLISTENER</h2>
+
+<ol>
+  <li>Install EVENTLISTENER from the Chrome Web Store.</li>
+  <li>Open the extension from the Chrome toolbar.</li>
+  <li>Click the option to open the full dashboard.</li>
+  <li>Choose your event groups and conditions.</li>
+  <li>Select the actions that should run when a rule fires.</li>
+  <li>Preview and choose an alarm sound if needed.</li>
+  <li>Configure shortcut behavior if you want to run a shortcut.</li>
+  <li>Save your default rule setup.</li>
+  <li>Return to the tab you want to monitor.</li>
+  <li>Open the popup and arm the current tab.</li>
+  <li>Leave EVENTLISTENER running while it watches for your selected conditions.</li>
+</ol>
+
+<h2>Frequently Asked Questions</h2>
+
+<h3>Is EVENTLISTENER a website monitoring service?</h3>
+
+<p>No. EVENTLISTENER is a Chrome extension that monitors activity in browser tabs you choose to arm. It is not a remote uptime monitoring service.</p>
+
+<h3>Can EVENTLISTENER monitor every website?</h3>
+
+<p>It can work on many normal web pages, but some pages may restrict extensions. Chrome internal pages, browser store pages, and some highly restricted websites may not support all features.</p>
+
+<h3>Can I use multiple event groups at once?</h3>
+
+<p>Yes. EVENTLISTENER is designed to support multiple monitored event groups from the same tab.</p>
+
+<h3>Can one rule run multiple actions?</h3>
+
+<p>Yes. A matched rule can run more than one configured action.</p>
+
+<h3>Can I preview alarm sounds?</h3>
+
+<p>Yes. The dashboard includes alarm sound preview controls so you can choose an alarm before saving it.</p>
+
+<h3>Will shortcuts always work?</h3>
+
+<p>No. Shortcut actions are intended for in-page shortcuts, and websites can handle keyboard input differently. Some pages may ignore or block scripted keyboard actions.</p>
+
+<h3>Does EVENTLISTENER contain mature content?</h3>
+
+<p>No. EVENTLISTENER is a productivity and browser automation extension. It does not contain adult content, violent content, gambling content, or drug-related content.</p>
+
+<h2>Contact And Support</h2>
+
+<p>If you need help with EVENTLISTENER, visit the support page linked from the Chrome Web Store listing.</p>
+
+<p><strong>Support email:</strong> your-email@example.com</p>
+
+<p><em>Replace your-email@example.com with your real support email before publishing this page.</em></p>
+
+<h2>Last Updated</h2>
+
+<p>July 16, 2026</p>

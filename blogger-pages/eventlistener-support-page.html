@@ -1,0 +1,410 @@
+<h1>EVENTLISTENER Support</h1>
+
+<p>Welcome to the support page for <strong>EVENTLISTENER</strong>, a Chrome extension that helps users monitor live tab and page activity, then run selected actions when configured rules are matched.</p>
+
+<p>This page explains how to get started, how to configure rules, what each major feature does, how to troubleshoot common issues, and how to contact support.</p>
+
+<h2>Support Summary</h2>
+
+<table>
+  <tbody>
+    <tr>
+      <td><strong>Extension</strong></td>
+      <td>EVENTLISTENER</td>
+    </tr>
+    <tr>
+      <td><strong>Category</strong></td>
+      <td>Productivity, browser monitoring, tab automation</td>
+    </tr>
+    <tr>
+      <td><strong>Main use</strong></td>
+      <td>Monitor selected tab and page conditions, then run configured actions when rules fire.</td>
+    </tr>
+    <tr>
+      <td><strong>Primary setup area</strong></td>
+      <td>EVENTLISTENER dashboard</td>
+    </tr>
+    <tr>
+      <td><strong>Quick controls</strong></td>
+      <td>Chrome extension popup</td>
+    </tr>
+    <tr>
+      <td><strong>Support email</strong></td>
+      <td>your-email@example.com</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><em>Replace your-email@example.com with your real support email before publishing this page.</em></p>
+
+<h2>Getting Started</h2>
+
+<ol>
+  <li>Install EVENTLISTENER from the Chrome Web Store.</li>
+  <li>Pin the extension to your Chrome toolbar if you want quick access.</li>
+  <li>Open the EVENTLISTENER popup from the toolbar.</li>
+  <li>Open the full dashboard from the popup.</li>
+  <li>Configure your saved default rules in the dashboard.</li>
+  <li>Select the event groups you want to monitor.</li>
+  <li>Choose the conditions for each selected event group.</li>
+  <li>Select the action or actions that should run when a rule fires.</li>
+  <li>Preview and choose an alarm sound if you are using alarm actions.</li>
+  <li>Configure shortcuts if you want EVENTLISTENER to run a shortcut on the monitored page.</li>
+  <li>Save your setup.</li>
+  <li>Return to the page you want to monitor.</li>
+  <li>Open the EVENTLISTENER popup and click <strong>Arm Current Tab</strong>.</li>
+</ol>
+
+<h2>Basic Workflow</h2>
+
+<p>EVENTLISTENER works best when you follow this workflow:</p>
+
+<ol>
+  <li><strong>Prepare rules in the dashboard.</strong> Choose your event groups, conditions, actions, cooldowns, alarm sound, and shortcut settings.</li>
+  <li><strong>Arm a tab from the popup.</strong> Apply your saved default setup to the current tab.</li>
+  <li><strong>Let the tab run.</strong> EVENTLISTENER watches the selected tab activity while you continue your work.</li>
+  <li><strong>Review live coverage.</strong> Use the dashboard to see which tabs are armed.</li>
+  <li><strong>Disarm when finished.</strong> Stop monitoring manually, or configure a rule action to disarm automatically after firing.</li>
+</ol>
+
+<h2>Popup Guide</h2>
+
+<p>The popup is the fastest way to use EVENTLISTENER after you have configured your defaults.</p>
+
+<h3>Current Tab</h3>
+
+<p>The current tab area shows information about the tab you are viewing. This helps you confirm which page you are about to arm or disarm.</p>
+
+<h3>Monitoring Status</h3>
+
+<p>The monitoring status area shows whether the current tab is armed. If the tab is not armed, EVENTLISTENER is not actively monitoring it with your saved setup.</p>
+
+<h3>Arm Current Tab</h3>
+
+<p>This applies your saved default rules to the current tab. Use this after you have configured the dashboard and are ready to monitor a page.</p>
+
+<h3>Disarm Current Tab</h3>
+
+<p>This stops monitoring the current tab. Use it when you no longer need EVENTLISTENER to watch that page.</p>
+
+<h3>Test Alarm</h3>
+
+<p>This lets you test the selected alarm behavior so you can confirm that sound output is working.</p>
+
+<h3>Stop Alarm</h3>
+
+<p>This stops an active alarm if one is playing.</p>
+
+<h3>Open The Full Dashboard</h3>
+
+<p>This opens the main configuration area where you can manage saved defaults, conditions, actions, sounds, shortcuts, cooldowns, and monitored tabs.</p>
+
+<h2>Dashboard Guide</h2>
+
+<p>The dashboard contains the full EVENTLISTENER configuration experience.</p>
+
+<h3>Saved Defaults</h3>
+
+<p>Saved defaults are the rules that the popup applies when you arm a tab. Configure these first if you want a repeatable setup.</p>
+
+<h3>Rule Editor</h3>
+
+<p>The rule editor lets you choose event groups, set conditions, and decide what should happen when those conditions are met.</p>
+
+<h3>Trigger Actions</h3>
+
+<p>Trigger actions are the things EVENTLISTENER runs when a rule fires. You can enable one action or multiple actions.</p>
+
+<h3>Cooldown</h3>
+
+<p>Cooldown controls help prevent repeated triggers from firing too frequently. If a page changes rapidly, cooldown settings can reduce noise and make alerts easier to manage.</p>
+
+<h3>Live Coverage</h3>
+
+<p>The live coverage view shows which tabs are currently armed and which rules are active. Use this view to review, focus, or disarm monitored tabs.</p>
+
+<h2>Event Groups Explained</h2>
+
+<h3>Tab Activity</h3>
+
+<p>Use tab activity monitoring for URL changes, title changes, or long loading states. This can help when a web app changes status through the title, redirects to a new URL, or remains in a loading state longer than expected.</p>
+
+<h3>Audio And Media</h3>
+
+<p>Use audio and media monitoring when sound activity matters. EVENTLISTENER can help detect audio activity or silence conditions depending on your configured rule.</p>
+
+<h3>Clicks</h3>
+
+<p>Use click monitoring for click inactivity or click bursts. This may be useful for pages where repeated clicking, lack of clicking, or user interaction timing matters.</p>
+
+<h3>Scrolling</h3>
+
+<p>Use scrolling monitoring to detect scroll inactivity or scroll depth. This may be useful for long pages, feeds, review workflows, documentation, or dashboards.</p>
+
+<h3>Keyboard</h3>
+
+<p>Use keyboard monitoring for typing inactivity or typing bursts. This can help with pages where text input or keyboard interaction is part of the workflow.</p>
+
+<h3>Visibility</h3>
+
+<p>Use visibility monitoring to detect when a page stays visible or hidden for a selected amount of time.</p>
+
+<h3>DOM Changes</h3>
+
+<p>Use DOM change monitoring when page content changes without a full reload. This is useful for dashboards, queues, live feeds, dynamic tables, and web apps that update in place.</p>
+
+<h2>Actions Explained</h2>
+
+<h3>Play Alarm Sound</h3>
+
+<p>This plays the selected alarm sound when a rule fires. Use the preview option in the dashboard to test the sound before saving.</p>
+
+<h3>Show Notification</h3>
+
+<p>This shows a browser notification when a rule fires. If notifications do not appear, check Chrome notification permissions and your operating system notification settings.</p>
+
+<h3>Run Shortcut</h3>
+
+<p>This sends a configured keyboard shortcut into the monitored page. Shortcut behavior depends on the website. Some websites accept scripted keyboard events, while others ignore or block them.</p>
+
+<h3>Stop Screen Share</h3>
+
+<p>This attempts to stop an active screen share from the monitored page when supported. The success of this action depends on the browser, page, and screen-sharing context.</p>
+
+<h3>Close Tab</h3>
+
+<p>This closes the monitored tab when the rule fires. Use this carefully on pages where unsaved work may exist.</p>
+
+<h3>Disarm Tab</h3>
+
+<p>This stops monitoring after a rule fires. It is useful when you want a rule to run once and then stop.</p>
+
+<h2>Troubleshooting</h2>
+
+<h3>The extension is not detecting activity</h3>
+
+<ul>
+  <li>Make sure the current tab is armed.</li>
+  <li>Open the dashboard and confirm that the event group is enabled.</li>
+  <li>Check that the rule condition matches the behavior you expect.</li>
+  <li>Try testing on a normal website rather than a Chrome internal page.</li>
+  <li>Refresh the page, arm the tab again, and test the condition.</li>
+  <li>Check whether the page restricts extension scripts or injected behavior.</li>
+</ul>
+
+<h3>The popup says the tab is not armed</h3>
+
+<p>Open the popup on the tab you want to monitor and click <strong>Arm Current Tab</strong>. If you switch to a different tab, that other tab may not be armed unless you arm it separately.</p>
+
+<h3>The alarm does not play</h3>
+
+<ul>
+  <li>Open the dashboard and preview the selected alarm sound.</li>
+  <li>Make sure your device volume is turned up.</li>
+  <li>Check that Chrome is not muted in your operating system sound settings.</li>
+  <li>Use the popup's alarm test control.</li>
+  <li>Try selecting a different alarm sound.</li>
+</ul>
+
+<h3>Notifications do not appear</h3>
+
+<ul>
+  <li>Make sure browser notifications are allowed.</li>
+  <li>Check your operating system notification settings.</li>
+  <li>Disable focus mode, do not disturb mode, or notification blocking if needed.</li>
+  <li>Confirm that the notification action is enabled in your rule setup.</li>
+</ul>
+
+<h3>The shortcut action does not work</h3>
+
+<ul>
+  <li>Make sure the shortcut is configured correctly in the dashboard.</li>
+  <li>Test the shortcut manually on the target page.</li>
+  <li>Remember that shortcut actions are intended for in-page shortcuts.</li>
+  <li>Some websites may ignore injected keyboard events.</li>
+  <li>Chrome internal pages and restricted pages may not support shortcut injection.</li>
+</ul>
+
+<h3>The tab does not close</h3>
+
+<ul>
+  <li>Confirm that the close tab action is enabled.</li>
+  <li>Make sure the rule actually fired.</li>
+  <li>Check whether the tab is a restricted browser page.</li>
+  <li>Try the same setup on a normal web page.</li>
+</ul>
+
+<h3>Screen share does not stop</h3>
+
+<ul>
+  <li>Confirm that the stop screen share action is enabled.</li>
+  <li>Check whether the monitored page supports the required behavior.</li>
+  <li>Try ending the screen share manually to confirm browser behavior.</li>
+  <li>Some pages and browser contexts may not allow this action.</li>
+</ul>
+
+<h3>Rules fire too often</h3>
+
+<ul>
+  <li>Increase the cooldown period.</li>
+  <li>Make the condition more specific.</li>
+  <li>Disable event groups you do not need.</li>
+  <li>Use the disarm action if the rule should only run once.</li>
+</ul>
+
+<h3>Rules do not fire when expected</h3>
+
+<ul>
+  <li>Check that the tab is armed.</li>
+  <li>Check that the selected event group is enabled.</li>
+  <li>Review the condition timing.</li>
+  <li>Test with a simpler condition first.</li>
+  <li>Open the live coverage view to confirm the tab is being monitored.</li>
+</ul>
+
+<h2>Best Practices</h2>
+
+<ul>
+  <li>Configure saved defaults in the dashboard before using the popup.</li>
+  <li>Test rules on the actual websites where you plan to use them.</li>
+  <li>Start with one event group, then add more after confirming behavior.</li>
+  <li>Use cooldowns to avoid repeated alerts.</li>
+  <li>Preview alarm sounds before relying on them.</li>
+  <li>Use notifications for low-urgency events and alarms for urgent events.</li>
+  <li>Use disarm-after-fire when you only need a rule to run once.</li>
+  <li>Be careful with close-tab actions on pages where unsaved work may exist.</li>
+</ul>
+
+<h2>Permissions And Why They Are Needed</h2>
+
+<p>EVENTLISTENER uses Chrome extension permissions to provide its monitoring and automation features. Depending on the version, the extension may use permissions such as alarms, notifications, offscreen, scripting, storage, tabs, and page access.</p>
+
+<h3>Alarms Permission</h3>
+
+<p>Used for timing, scheduled checks, and cooldown behavior.</p>
+
+<h3>Notifications Permission</h3>
+
+<p>Used to show browser notifications when a configured rule fires.</p>
+
+<h3>Storage Permission</h3>
+
+<p>Used to save settings, saved defaults, rule configuration, selected actions, alarm choices, shortcut settings, and monitoring preferences.</p>
+
+<h3>Tabs Permission</h3>
+
+<p>Used to identify the current tab, monitor armed tabs, and manage tab-related actions.</p>
+
+<h3>Scripting Permission</h3>
+
+<p>Used to monitor supported page activity and run supported actions in the page context.</p>
+
+<h3>Host/Page Access</h3>
+
+<p>Used so EVENTLISTENER can operate on the pages you choose to monitor. Some pages may still restrict extension functionality.</p>
+
+<h2>Privacy Information</h2>
+
+<p>EVENTLISTENER is designed as a browser-based productivity tool. Its purpose is to monitor selected tab activity and run the actions you configure.</p>
+
+<p>Settings and rules are stored using Chrome extension storage. EVENTLISTENER is not designed to sell user data. Always review the Chrome Web Store listing and any published privacy policy for the most current privacy details.</p>
+
+<h2>Known Limitations</h2>
+
+<ul>
+  <li>Chrome internal pages may restrict extension behavior.</li>
+  <li>Chrome Web Store pages may restrict extension behavior.</li>
+  <li>Some websites block injected scripts or keyboard events.</li>
+  <li>Notifications depend on browser and operating system settings.</li>
+  <li>Audio behavior can depend on browser policies and system sound settings.</li>
+  <li>Screen-share behavior depends on what the browser and page allow.</li>
+  <li>DOM monitoring may vary depending on how a page updates its content.</li>
+  <li>Shortcut actions are not intended for operating-system shortcuts.</li>
+</ul>
+
+<h2>Frequently Asked Questions</h2>
+
+<h3>Do I need to configure the dashboard first?</h3>
+
+<p>Yes, it is recommended. Configure your saved defaults in the dashboard first, then use the popup to quickly arm the current tab.</p>
+
+<h3>Can I arm more than one tab?</h3>
+
+<p>Yes. EVENTLISTENER is designed to support live monitoring workflows where multiple tabs may be armed and reviewed from the live coverage view.</p>
+
+<h3>Can I stop monitoring a tab?</h3>
+
+<p>Yes. Use the popup to disarm the current tab or use the dashboard live coverage view to review and disarm monitored tabs.</p>
+
+<h3>Can a rule run more than one action?</h3>
+
+<p>Yes. You can configure multiple trigger actions for a rule.</p>
+
+<h3>Can I test the alarm sound?</h3>
+
+<p>Yes. Use the alarm preview controls in the dashboard or the alarm test control in the popup.</p>
+
+<h3>Does EVENTLISTENER work on mobile Chrome?</h3>
+
+<p>EVENTLISTENER is intended for desktop Chrome and Chromium-based browsers that support the required Chrome extension APIs.</p>
+
+<h3>Why does the extension need access to websites?</h3>
+
+<p>EVENTLISTENER needs page access so it can monitor activity on the tabs you choose to arm and run supported actions when rules fire.</p>
+
+<h3>Does EVENTLISTENER change web pages by itself?</h3>
+
+<p>EVENTLISTENER only runs the actions you configure. Some actions, such as shortcut actions, are intended to interact with the monitored page.</p>
+
+<h3>What should I do before reporting a bug?</h3>
+
+<p>Try refreshing the page, re-arming the tab, checking your saved defaults, and testing on a normal website. If the issue continues, contact support with the details listed below.</p>
+
+<h2>How To Report A Bug</h2>
+
+<p>If you find a bug, please send a support message with as much detail as possible.</p>
+
+<p><strong>Support email:</strong> your-email@example.com</p>
+
+<p>Please include:</p>
+
+<ul>
+  <li>Your browser name and version.</li>
+  <li>Your operating system.</li>
+  <li>The EVENTLISTENER extension version.</li>
+  <li>The website or type of page you were monitoring.</li>
+  <li>The event group you enabled.</li>
+  <li>The condition you expected to trigger.</li>
+  <li>The action you expected EVENTLISTENER to run.</li>
+  <li>What happened instead.</li>
+  <li>Whether the issue happens every time or only sometimes.</li>
+  <li>Any screenshots or exact error messages, if available.</li>
+</ul>
+
+<h2>Feature Requests</h2>
+
+<p>Feature requests are welcome. If you have an idea for a new event group, condition, action, sound, shortcut option, dashboard improvement, or workflow improvement, send a message to the support email.</p>
+
+<h2>Uninstalling EVENTLISTENER</h2>
+
+<ol>
+  <li>Open Chrome.</li>
+  <li>Go to <strong>chrome://extensions/</strong>.</li>
+  <li>Find EVENTLISTENER.</li>
+  <li>Click <strong>Remove</strong>.</li>
+  <li>Confirm removal.</li>
+</ol>
+
+<p>Removing the extension will remove the extension from Chrome. Depending on Chrome behavior and sync settings, extension-related local settings may also be removed.</p>
+
+<h2>Safety And Responsible Use</h2>
+
+<p>Use EVENTLISTENER only on pages and workflows where you understand the effects of the actions you configure. Be careful with actions such as closing tabs, running shortcuts, or stopping screen share. Test rules before relying on them for important workflows.</p>
+
+<h2>Mature Content Statement</h2>
+
+<p>EVENTLISTENER is a productivity and browser monitoring extension. It does not contain adult content, sexually suggestive content, graphic violence, gambling content, or drug-related content.</p>
+
+<h2>Last Updated</h2>
+
+<p>July 16, 2026</p>
